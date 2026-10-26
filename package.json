@@ -7,5 +7,8 @@
     "test": "node --test tests/*.test.mjs",
     "start": "node server/index.mjs",
     "demo": "node server/index.mjs --config config/example.json"
+  },
+  "dependencies": {
+    "three": "0.170.0"
   }
 }
