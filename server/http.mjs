@@ -1,0 +1,76 @@
+import { readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
+
+const baseHeaders = {
+  'Cache-Control': 'no-store',
+  'X-Content-Type-Options': 'nosniff',
+  'Content-Security-Policy': "default-src 'self'",
+};
+
+export function createHandler({ source, mode, staticFiles = {} }) {
+  return async (req, res) => {
+    try {
+      await route(req, res, { source, mode, staticFiles });
+    } catch {
+      // 不回傳也不記錄例外內容：第四階段的來源錯誤可能含 token 或來源回應。
+      if (res.headersSent) res.destroy();
+      else sendError(req, res, 500, 'internal_error', '伺服器內部錯誤');
+    }
+  };
+}
+
+export function listen(handler, { host, port }) {
+  return new Promise((resolve, reject) => {
+    const server = createServer(handler);
+    server.once('error', reject);
+    server.listen(port, host, () => {
+      server.off('error', reject);
+      resolve(server);
+    });
+  });
+}
+
+async function route(req, res, { source, mode, staticFiles }) {
+  const port = req.socket.localPort;
+  if (![`127.0.0.1:${port}`, `localhost:${port}`].includes(req.headers.host)) {
+    return sendError(req, res, 403, 'forbidden_host', '只接受本機位址存取');
+  }
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.setHeader('Allow', 'GET, HEAD');
+    return sendError(req, res, 405, 'method_not_allowed', '僅支援 GET 與 HEAD');
+  }
+  const url = new URL(req.url, 'http://127.0.0.1');
+  const refresh = url.searchParams.get('refresh') === '1';
+  if (url.pathname === '/api/health') {
+    return sendJson(req, res, 200, { status: 'ok', mode });
+  }
+  if (url.pathname === '/api/snapshot') {
+    return sendJson(req, res, 200, await source.getSnapshot({ refresh }));
+  }
+  const match = url.pathname.match(/^\/api\/work-packages\/([^/]+)\/participants$/);
+  if (match) {
+    if (!/^\d+$/.test(match[1])) return sendError(req, res, 400, 'invalid_id', '工作項目 ID 格式不正確');
+    const result = await source.getParticipants(match[1], { refresh });
+    if (!result) return sendError(req, res, 404, 'work_package_not_found', '找不到工作項目');
+    return sendJson(req, res, 200, result);
+  }
+  // 白名單以正規化後的完整路徑比對，不組合檔案路徑，因此不存在目錄穿越。
+  if (Object.hasOwn(staticFiles, url.pathname)) {
+    const file = staticFiles[url.pathname];
+    return send(req, res, 200, file.type, await readFile(file.path));
+  }
+  return sendError(req, res, 404, 'not_found', '找不到資源');
+}
+
+function send(req, res, status, type, body) {
+  res.writeHead(status, { ...baseHeaders, 'Content-Type': type, 'Content-Length': body.length });
+  res.end(req.method === 'HEAD' ? undefined : body);
+}
+
+function sendJson(req, res, status, data) {
+  send(req, res, status, 'application/json; charset=utf-8', Buffer.from(JSON.stringify(data)));
+}
+
+function sendError(req, res, status, code, message) {
+  sendJson(req, res, status, { error: { code, message } });
+}
