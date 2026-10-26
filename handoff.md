@@ -1,7 +1,7 @@
 # Dashboard 工作交接
 
 最後更新：2026-10-26（Asia/Taipei）
-目前階段：環境診斷完成，設計文件、六階段路線與第一階段實作計畫已備妥，等待使用者審閱確認；尚未開始產品實作。
+目前階段：使用者已核准設計、路線與第一階段計畫；第一階段（資料基礎）已完成並提交於 `feature/foundation`。下一步為第二階段（本機示例服務）逐步計畫。
 
 ## 最新接續摘要
 - 使用者最後要求「記錄到 handoff」，本次僅更新交接；這不代表已批准設計或開始實作。
@@ -91,3 +91,14 @@
 - 已查閱官方 OpenProject API 驗證／工作項目文件與 Three.js OrbitControls；公司版本及真實 API 資料仍未核對。
 - 已自查規格覆蓋：三種視圖、船隻、分頁、每 60 秒更新、選取保留、私有設定、錯誤與真實驗收均有對應階段。第一階段僅涵蓋資料基礎，不代表產品完整計畫已逐檔展開。
 - 下一步：使用者審閱既有完整設計與本輪計畫後，依基礎計畫開始實作；工作區仍在無提交 master，先依允許工具處理開發分支／隔離與基準，禁止變更 ACL。
+
+## 2026-10-26 資料基礎階段（第一階段）
+- 使用者於本次明確選擇「核准並開始第一階段」，設計文件、路線與 foundation 計畫視為已核准。
+- 使用者要求：回覆與紀錄一律使用繁體中文。
+- Git：文件基準已提交於 master（3df5d57），隨後建立 `feature/foundation` 分支實作。本次 Git 寫入可正常執行，未修改 ACL。
+- 已建立：`server/config.mjs`、`shared/participants.mjs`、`shared/layout.mjs`、`config/example.json`、`package.json`、`tests/{config,participants,layout}.test.mjs`，內容依 foundation 計畫。
+- 測試先行：先執行確認三個測試檔皆因 ERR_MODULE_NOT_FOUND 失敗，實作後 `npm test`：8 個測試通過、0 失敗（Node v25.8.0）。
+- `git check-ignore config/local.json` 輸出該路徑，私有設定忽略規則已驗證。未建立 config/local.json，未使用任何真實 token。
+- 計畫中的規格／程式碼品質審查：程式碼與已核准計畫逐字一致，僅做自我核對，未另派審查代理。
+- 尚無 HTTP 服務、3D UI 或真實 OpenProject 資料串接；真實 API 仍為 401、未取得 token。
+- 下一步：依 dashboard-roadmap 撰寫第二階段（loopback 示例服務、示例資料、統一 JSON 介面）測試先行計畫，經使用者確認後實作。
