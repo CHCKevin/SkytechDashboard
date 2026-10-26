@@ -102,3 +102,9 @@
 - 計畫中的規格／程式碼品質審查：程式碼與已核准計畫逐字一致，僅做自我核對，未另派審查代理。
 - 尚無 HTTP 服務、3D UI 或真實 OpenProject 資料串接；真實 API 仍為 401、未取得 token。
 - 下一步：依 dashboard-roadmap 撰寫第二階段（loopback 示例服務、示例資料、統一 JSON 介面）測試先行計畫，經使用者確認後實作。
+
+## 2026-10-26 第二階段計畫
+- 使用者要求開始撰寫第二階段計畫；已完成 `docs/superpowers/plans/2026-10-26-dashboard-demo-service.md`，等待使用者審閱。尚未實作、尚未提交此計畫。
+- 範圍：示例資料來源（server/demo.mjs）、loopback HTTP（server/http.mjs）、啟動入口（server/index.mjs）、暫時頁面（client/index.html）；預計測試總數 22。
+- 主要決策：資料來源介面 `getSnapshot`／`getParticipants` 供第四階段 adapter 替換；Host 白名單防 DNS rebinding；靜態檔以完整路徑白名單比對；500 不回傳例外內容；live 模式在 adapter 完成前拒絕啟動，不退回示例。
+- 實作時從 `feature/foundation` 建立 `feature/demo-service`。
