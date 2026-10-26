@@ -20,7 +20,11 @@ async function main() {
   const handler = createHandler({ source: createDemoSource(), mode: config.mode, staticFiles });
   const server = await listen(handler, { host: config.host, port: config.port });
   console.log(`示例模式已啟動：http://${config.host}:${config.port}/`);
-  const stop = () => server.close(() => process.exit(0));
+  const stop = () => {
+    server.close(() => process.exit(0));
+    // 卡住的連線不應讓關閉永遠等待。
+    setTimeout(() => process.exit(0), 2000).unref();
+  };
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);
 }

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { request } from 'node:http';
+import { connect } from 'node:net';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -93,14 +94,42 @@ test('only GET and HEAD are allowed', async () => {
     assert.ok(Number(head.headers['content-length']) > 0);
   });
 });
-test('config, source files, and traversal paths are never served', async () => {
+test('HEAD on a missing path returns 404 headers without a body', async () => {
   await withServer(demo(), async port => {
-    for (const path of ['/config/local.json', '/config/example.json', '/server/config.mjs',
-      '/package.json', '/client/index.html', '/../config/local.json',
-      '/%2e%2e/config/local.json', '/api/../config/local.json', '/.git/config']) {
-      const res = await send(port, path);
-      assert.equal(res.status, 404, path);
-      assert.equal(res.json.error.code, 'not_found', path);
+    const res = await send(port, '/missing', { method: 'HEAD' });
+    assert.equal(res.status, 404);
+    assert.equal(res.body, '');
+    assert.ok(Number(res.headers['content-length']) > 0);
+  });
+});
+test('config, source files, and traversal paths are never served', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'dashboard-static-'));
+  try {
+    const page = join(dir, 'index.html');
+    await writeFile(page, '<!doctype html><title>t</title>');
+    await writeFile(join(dir, 'secret.json'), '{"apiToken":"FAKE_TOKEN_123"}');
+    const staticFiles = { '/': { path: page, type: 'text/html; charset=utf-8' } };
+    await withServer({ ...demo(), staticFiles }, async port => {
+      assert.equal((await send(port, '/')).status, 200);
+      for (const path of ['/secret.json', '/index.html', '/../secret.json', '/%2e%2e/secret.json',
+        '/config/local.json', '/config/example.json', '/server/config.mjs',
+        '/package.json', '/client/index.html', '/../config/local.json',
+        '/%2e%2e/config/local.json', '/api/../config/local.json', '/.git/config']) {
+        const res = await send(port, path);
+        assert.equal(res.status, 404, path);
+        assert.equal(res.json.error.code, 'not_found', path);
+      }
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+test('rejects request targets that are not origin-form paths', async () => {
+  await withServer(demo(), async port => {
+    for (const path of ['//evil/api/health', 'http://evil.test/api/health', '/\\api/health']) {
+      const res = await send(port, path, { headers: { host: `127.0.0.1:${port}` } });
+      assert.equal(res.status, 400, path);
+      assert.equal(res.json.error.code, 'invalid_request_target', path);
     }
   });
 });
@@ -130,6 +159,17 @@ test('rejects foreign Host headers', async () => {
     assert.equal(wrongPort.status, 403);
     const localhost = await send(port, '/api/health', { headers: { host: `localhost:${port}` } });
     assert.equal(localhost.status, 200);
+    const upper = await send(port, '/api/health', { headers: { host: `LOCALHOST:${port}` } });
+    assert.equal(upper.status, 200);
+    // HTTP/1.0 不要求 Host，Node 不會先擋下，因此能驗證缺少 Host 時的處理。
+    const statusLine = await new Promise((resolve, reject) => {
+      const socket = connect(port, '127.0.0.1', () => socket.write('GET /api/health HTTP/1.0\r\n\r\n'));
+      let data = '';
+      socket.on('data', chunk => { data += chunk; });
+      socket.on('end', () => resolve(data.split('\r\n')[0]));
+      socket.on('error', reject);
+    });
+    assert.match(statusLine, /^HTTP\/1\.[01] 403 /);
   });
 });
 test('empty data is returned as a valid snapshot', async () => {
@@ -150,12 +190,23 @@ test('source failures return a generic error without details', async () => {
     async getSnapshot() { throw new Error('SECRET token=FAKE_TOKEN_123'); },
     async getParticipants() { throw new Error('SECRET token=FAKE_TOKEN_123'); },
   };
-  await withServer({ source, mode: 'demo' }, async port => {
-    for (const path of ['/api/snapshot', '/api/work-packages/1/participants']) {
-      const res = await send(port, path);
-      assert.equal(res.status, 500, path);
-      assert.deepEqual(res.json, { error: { code: 'internal_error', message: '伺服器內部錯誤' } });
-      assert.ok(!res.body.includes('SECRET'));
-    }
-  });
+  const logged = [];
+  const original = console.error;
+  console.error = (...args) => logged.push(args.map(String).join(' '));
+  try {
+    await withServer({ source, mode: 'demo' }, async port => {
+      for (const path of ['/api/snapshot', '/api/work-packages/1/participants']) {
+        const res = await send(port, path);
+        assert.equal(res.status, 500, path);
+        assert.deepEqual(res.json, { error: { code: 'internal_error', message: '伺服器內部錯誤' } });
+        assert.ok(!res.body.includes('SECRET'));
+      }
+    });
+  } finally {
+    console.error = original;
+  }
+  assert.equal(logged.length, 2);
+  const output = logged.join('\n');
+  assert.ok(!output.includes('SECRET'));
+  assert.ok(!output.includes('FAKE_TOKEN_123'));
 });

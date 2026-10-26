@@ -11,8 +11,9 @@ export function createHandler({ source, mode, staticFiles = {} }) {
   return async (req, res) => {
     try {
       await route(req, res, { source, mode, staticFiles });
-    } catch {
-      // 不回傳也不記錄例外內容：第四階段的來源錯誤可能含 token 或來源回應。
+    } catch (error) {
+      // 只記錄白名單欄位，不記錄訊息或堆疊：第四階段的來源錯誤可能含 token 或來源回應。
+      console.error('Request failed:', req.method, safePathname(req.url), error?.name ?? 'Error');
       if (res.headersSent) res.destroy();
       else sendError(req, res, 500, 'internal_error', '伺服器內部錯誤');
     }
@@ -32,12 +33,15 @@ export function listen(handler, { host, port }) {
 
 async function route(req, res, { source, mode, staticFiles }) {
   const port = req.socket.localPort;
-  if (![`127.0.0.1:${port}`, `localhost:${port}`].includes(req.headers.host)) {
+  if (![`127.0.0.1:${port}`, `localhost:${port}`].includes(req.headers.host?.toLowerCase())) {
     return sendError(req, res, 403, 'forbidden_host', '只接受本機位址存取');
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.setHeader('Allow', 'GET, HEAD');
     return sendError(req, res, 405, 'method_not_allowed', '僅支援 GET 與 HEAD');
+  }
+  if (!isOriginForm(req.url)) {
+    return sendError(req, res, 400, 'invalid_request_target', '請求路徑格式不正確');
   }
   const url = new URL(req.url, 'http://127.0.0.1');
   const refresh = url.searchParams.get('refresh') === '1';
@@ -60,6 +64,20 @@ async function route(req, res, { source, mode, staticFiles }) {
     return send(req, res, 200, file.type, await readFile(file.path));
   }
   return sendError(req, res, 404, 'not_found', '找不到資源');
+}
+
+// 只接受 origin-form；'//'、絕對形式與反斜線會讓 URL 解析改變主機或路徑。
+function isOriginForm(target) {
+  return target.startsWith('/') && !target.startsWith('//') && !target.includes('\\');
+}
+
+function safePathname(target) {
+  if (!isOriginForm(target)) return '-';
+  try {
+    return new URL(target, 'http://127.0.0.1').pathname;
+  } catch {
+    return '-';
+  }
 }
 
 function send(req, res, status, type, body) {
