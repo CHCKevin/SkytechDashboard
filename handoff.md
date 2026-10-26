@@ -1,7 +1,7 @@
 # Dashboard 工作交接
 
 最後更新：2026-10-26（Asia/Taipei）
-目前階段：使用者已核准設計、路線與第一階段計畫；第一階段（資料基礎）已完成並提交於 `feature/foundation`。下一步為第二階段（本機示例服務）逐步計畫。
+目前階段：第一、二階段已完成。第二階段（本機示例服務）提交於 `feature/demo-service`（基於 `feature/foundation`，兩分支皆未合併至 master）。下一步為第三階段（3D 前端）測試先行計畫。
 
 ## 最新接續摘要
 - 使用者最後要求「記錄到 handoff」，本次僅更新交接；這不代表已批准設計或開始實作。
@@ -108,3 +108,13 @@
 - 範圍：示例資料來源（server/demo.mjs）、loopback HTTP（server/http.mjs）、啟動入口（server/index.mjs）、暫時頁面（client/index.html）；預計測試總數 22。
 - 主要決策：資料來源介面 `getSnapshot`／`getParticipants` 供第四階段 adapter 替換；Host 白名單防 DNS rebinding；靜態檔以完整路徑白名單比對；500 不回傳例外內容；live 模式在 adapter 完成前拒絕啟動，不退回示例。
 - 實作時從 `feature/foundation` 建立 `feature/demo-service`。
+
+## 2026-10-26 本機示例服務（第二階段）完成
+- 使用者核准第二階段計畫並選擇子代理執行。分支 `feature/demo-service`：d89d380（計畫）→ a8b78bd（示例資料）→ 3951a88（HTTP）→ 34bcf3e（入口／暫時頁面）→ b6764a5（審查修正）。
+- 每個任務由子代理依計畫測試先行實作；主控以腳本核對程式碼與計畫逐字一致。規格審查由主控逐字比對完成，程式碼品質審查改為整個階段一次（審查代理），非每任務各一次。
+- 品質審查結論：附修正後核准，無 Critical。已修正：只接受 origin-form 路徑（`//x`、絕對形式、反斜線回 400）；500 時僅記錄方法／路徑／錯誤名稱，不記錄訊息與堆疊；靜態白名單搭配誘餌檔測目錄穿越；新增實際啟動入口測試；Host 比對不分大小寫；缺 Host（HTTP/1.0）回 403 有測試；HEAD 404 測試；關閉時 2 秒逾時保險。
+- 驗證：`npm test` 25 個測試通過、0 失敗。煙霧測試（`npm run demo` 同等指令）：health/首頁/snapshot 200（demo、4 個工作項目、3 個專案），`/config/example.json` 404，POST 405；關閉後 4173 不再監聽。`config/local.json` 忽略規則仍有效。
+- 啟動方式：`npm run demo`（讀 config/example.json，demo 模式）→ http://127.0.0.1:4173/ 。`npm start` 讀 config/local.json；live 模式目前明確拒絕啟動，不退回示例。
+- 留給第四階段：`GET ?refresh=1` 可被跨站網頁盲目觸發（無法讀回應），adapter 需合併／限流刷新或檢查 `Sec-Fetch-Site`。
+- 尚無 3D 前端與真實 OpenProject 串接；API 仍未取得 token。
+- 下一步：撰寫第三階段（3D 前端）測試先行計畫，含 Three.js 確切版本與本機 vendor 方式（CSP 為 `default-src 'self'`），經使用者確認後實作。
