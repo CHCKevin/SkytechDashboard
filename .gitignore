@@ -1,0 +1,6 @@
+# 忽略本機機密與視覺草圖
+config/local.json
+.env
+.env.*
+!.env.example
+.superpowers/
