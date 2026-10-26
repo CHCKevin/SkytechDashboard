@@ -4,8 +4,8 @@ import { createServer } from 'node:http';
 const baseHeaders = {
   'Cache-Control': 'no-store',
   'X-Content-Type-Options': 'nosniff',
-  'Content-Security-Policy': "default-src 'self'",
 };
+const defaultCsp = "default-src 'self'";
 
 export function createHandler({ source, mode, staticFiles = {} }) {
   return async (req, res) => {
@@ -61,7 +61,7 @@ async function route(req, res, { source, mode, staticFiles }) {
   // 白名單以正規化後的完整路徑比對，不組合檔案路徑，因此不存在目錄穿越。
   if (Object.hasOwn(staticFiles, url.pathname)) {
     const file = staticFiles[url.pathname];
-    return send(req, res, 200, file.type, await readFile(file.path));
+    return send(req, res, 200, file.type, await readFile(file.path), file.csp);
   }
   return sendError(req, res, 404, 'not_found', '找不到資源');
 }
@@ -80,8 +80,10 @@ function safePathname(target) {
   }
 }
 
-function send(req, res, status, type, body) {
-  res.writeHead(status, { ...baseHeaders, 'Content-Type': type, 'Content-Length': body.length });
+function send(req, res, status, type, body, csp = defaultCsp) {
+  res.writeHead(status, {
+    ...baseHeaders, 'Content-Security-Policy': csp, 'Content-Type': type, 'Content-Length': body.length,
+  });
   res.end(req.method === 'HEAD' ? undefined : body);
 }
 

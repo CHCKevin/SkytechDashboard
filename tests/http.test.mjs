@@ -210,3 +210,19 @@ test('source failures return a generic error without details', async () => {
   assert.ok(!output.includes('SECRET'));
   assert.ok(!output.includes('FAKE_TOKEN_123'));
 });
+
+test('static entries can carry their own CSP', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'dashboard-csp-'));
+  try {
+    const page = join(dir, 'index.html');
+    await writeFile(page, '<!doctype html>');
+    const csp = "default-src 'self'; script-src 'self' 'sha256-abc='";
+    const staticFiles = { '/': { path: page, type: 'text/html; charset=utf-8', csp } };
+    await withServer({ ...demo(), staticFiles }, async port => {
+      assert.equal((await send(port, '/')).headers['content-security-policy'], csp);
+      assert.equal((await send(port, '/api/health')).headers['content-security-policy'], "default-src 'self'");
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
