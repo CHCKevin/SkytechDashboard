@@ -1,7 +1,7 @@
 # Dashboard 工作交接
 
 最後更新：2026-10-26（Asia/Taipei）
-目前階段：第一、二階段已完成。第二階段（本機示例服務）提交於 `feature/demo-service`（基於 `feature/foundation`，兩分支皆未合併至 master）。下一步為第三階段（3D 前端）測試先行計畫。
+目前階段：第一～三階段已完成。第三階段（3D 前端）提交於 `feature/3d-frontend`（依序基於 `feature/demo-service`、`feature/foundation`；三個分支皆未合併至 master）。下一步為第四階段（OpenProject adapter），需要使用者提供 API token。
 
 ## 最新接續摘要
 - 使用者最後要求「記錄到 handoff」，本次僅更新交接；這不代表已批准設計或開始實作。
@@ -118,3 +118,24 @@
 - 留給第四階段：`GET ?refresh=1` 可被跨站網頁盲目觸發（無法讀回應），adapter 需合併／限流刷新或檢查 `Sec-Fetch-Site`。
 - 尚無 3D 前端與真實 OpenProject 串接；API 仍未取得 token。
 - 下一步：撰寫第三階段（3D 前端）測試先行計畫，含 Three.js 確切版本與本機 vendor 方式（CSP 為 `default-src 'self'`），經使用者確認後實作。
+
+## 2026-10-27 3D 前端（第三階段）完成
+- 使用者要求「寫第三階段計畫，完成後直接執行」。計畫：`docs/superpowers/plans/2026-10-27-dashboard-3d-frontend.md`（8fe446f）。分支 `feature/3d-frontend`。
+- 提交：55a8320 配置純函式 → ac6fc5d view-model → 886ef94 store → ccdf2d5 Three.js 前端 → 2808e86 白名單／CSP → 0f4dfa5 瀏覽器驗證修正 → c5a2c5a 審查修正。
+- 技術決定：`three@0.170.0`（確切版本、package-lock，build/three.module.js 為單檔）。由 `/vendor/...` 白名單提供，不用 CDN。頁面以 import map 對應 `three`，CSP 為 `default-src 'self'` 加上 import map 的 sha256（換行先正規化為 LF），另含 `base-uri`／`form-action`／`frame-ancestors 'none'`。`node_modules/` 已忽略。
+- 執行方式：Task 1–5 由子代理依計畫逐字實作，主控以腳本核對與計畫一致；整個階段做一次品質審查（附修正後核准，無 Critical）。
+- 瀏覽器驗證：Chrome 擴充工具不可用（使用者未完成安裝），改用無頭 Chrome + DevTools 協定腳本（存放於當次 scratchpad，未納入 repo）。34/34 通過，涵蓋：
+  - 星系與圖例、真實滑鼠點選星系與星球、太空船出現與替換、HTML 描述以純文字顯示。
+  - 未指派、同名不同 ID、未完整名單、未知狀態；全宇宙保留選取、切換專案解除選取。
+  - Esc、鍵盤 Enter 與焦點保留、旋轉／縮放／平移／重設視角、主控台無錯誤與 CSP 違規、停用 WebGL 時顯示提示。
+- 驗證中發現並修正：`/favicon.ico` 404（新增 `client/favicon.svg` 白名單）；單一星系星球擠在核心旁（星球分布 ×2、核心縮小、鏡頭拉遠、標籤距離 140）。
+- 審查後修正：選取時星球仍在分批佇列中，建立後補上太空船；選取星球消失時移除太空船；太空船跟隨星球即時位置；畫面錯誤不再誤報為參與者載入失敗；佇列去重；右鍵／中鍵不觸發點選；CSP 換行正規化與強化指令。
+- 驗證結果：`npm test` 45 通過、0 失敗；瀏覽器驗證 34/34。
+- 未驗證：上述「星球仍在佇列中」與「星球消失」兩項修正在示例資料（4 筆）中無法觸發，只經程式碼審查，尚無自動化測試。
+- 執行：`npm install`（首次）後 `npm run demo` → http://127.0.0.1:4173/ 。
+- 延後項目（審查提出，屬後續階段）：
+  - 第五階段：每 60 秒更新時避免整份清單與專案選單重建（開啟中的下拉選單會被關閉）。
+  - 第六階段：大量星球時每幀標籤距離計算與 CSS2D 成本；清單虛擬化。
+  - 第四階段：正規化後 `status` 必為非 null（scene／legend 依賴此契約）；`refresh` 需合併或限流。
+  - 次要：Esc 後焦點回到清單、`hasWebGL` 測試用 context 未釋放、飛行與阻尼殘留漂移。
+- 下一步：第四階段 OpenProject adapter。需要使用者在 OpenProject 個人設定建立 API token，並自行填入 `config/local.json`（不要貼在對話中）；實作前先撰寫測試先行計畫，以本機假來源測試分頁與錯誤碼。
