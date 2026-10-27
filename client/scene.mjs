@@ -46,6 +46,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   let total = 0;
   let view = { mode: 'overview', projectId: null };
   let selectedId = null;
+  let crew = null; // { id, people }
   let flight = null;
 
   function label(text, className) {
@@ -90,6 +91,8 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
     const planet = { mesh, tag, wp };
     planets.set(wp.id, planet);
     updatePlanet(planet, wp);
+    // 選取的星球若仍在分批佇列中，建立後才補上太空船。
+    if (crew?.id === wp.id) fleet.show(mesh.position, crew.people);
   }
 
   function updatePlanet(planet, wp) {
@@ -122,12 +125,15 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
       if (!ids.has(id)) { removeObject(planet.mesh); planets.delete(id); }
     }
     pending = [];
+    const queued = new Set();
     for (const wp of snapshot.workPackages) {
       if (planets.has(wp.id)) updatePlanet(planets.get(wp.id), wp);
-      else pending.push(wp);
+      else if (!queued.has(wp.id)) { queued.add(wp.id); pending.push(wp); }
     }
     total = snapshot.workPackages.length;
     onProgress(planets.size, total);
+    // 選取的星球消失時移除太空船但保留 crew，星球回來時由 addPlanet 補上。
+    if (crew && !planets.has(crew.id)) fleet.clear();
   }
 
   // 全宇宙大量星球分批加入，避免單一畫格卡住；進度回報已呈現／總數。
@@ -160,25 +166,32 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
 
   function select(id) {
     selectedId = id;
+    crew = null;
     fleet.clear();
     refreshPlanets();
   }
 
   function showShips(id, people) {
+    if (id !== selectedId) return;
+    crew = { id, people };
     const planet = planets.get(id);
-    if (id !== selectedId || !planet) return;
-    fleet.show(planet.mesh.position.toArray(), people);
+    if (planet) fleet.show(planet.mesh.position, people);
   }
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let down = null;
-  renderer.domElement.addEventListener('pointerdown', event => { down = [event.clientX, event.clientY]; });
+  renderer.domElement.addEventListener('pointerdown', event => {
+    // 只有主要按鍵可點選；右鍵與中鍵留給平移與縮放。
+    if (event.button !== 0) { down = null; return; }
+    down = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+  });
   renderer.domElement.addEventListener('pointerup', event => {
     const start = down;
     down = null;
+    if (!start || event.pointerId !== start.pointerId) return;
     // 拖曳是旋轉或平移，不是點選。
-    if (!start || Math.hypot(event.clientX - start[0], event.clientY - start[1]) > CLICK_TOLERANCE) return;
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > CLICK_TOLERANCE) return;
     const rect = renderer.domElement.getBoundingClientRect();
     pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);

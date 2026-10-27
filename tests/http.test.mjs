@@ -44,7 +44,7 @@ test('health exposes only status and mode with safe headers', async () => {
     assert.equal(res.headers['content-type'], 'application/json; charset=utf-8');
     assert.equal(res.headers['cache-control'], 'no-store');
     assert.equal(res.headers['x-content-type-options'], 'nosniff');
-    assert.equal(res.headers['content-security-policy'], "default-src 'self'");
+    assert.equal(res.headers['content-security-policy'], "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
   });
 });
 test('snapshot and participants follow the contract', async () => {
@@ -220,7 +220,7 @@ test('static entries can carry their own CSP', async () => {
     const staticFiles = { '/': { path: page, type: 'text/html; charset=utf-8', csp } };
     await withServer({ ...demo(), staticFiles }, async port => {
       assert.equal((await send(port, '/')).headers['content-security-policy'], csp);
-      assert.equal((await send(port, '/api/health')).headers['content-security-policy'], "default-src 'self'");
+      assert.equal((await send(port, '/api/health')).headers['content-security-policy'], "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
     });
   } finally {
     await rm(dir, { recursive: true, force: true });

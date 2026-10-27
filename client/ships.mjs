@@ -19,6 +19,7 @@ export function createShipFleet(scene) {
     ships = [];
   }
 
+  // position 是星球的即時位置向量（planet.mesh.position），星球移動時太空船跟著移動。
   function show(position, people) {
     clear();
     center = position;
@@ -39,8 +40,8 @@ export function createShipFleet(scene) {
 
   function update(time) {
     ships.forEach((ship, index) => {
-      ship.position.set(...shipPosition(center, index, ships.length, time));
-      ship.lookAt(...center);
+      ship.position.set(...shipPosition(center.toArray(), index, ships.length, time));
+      ship.lookAt(center);
     });
   }
 

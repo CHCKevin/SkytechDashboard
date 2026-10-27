@@ -45,11 +45,14 @@ async function start() {
   async function select(id) {
     const token = store.select(id);
     if (!id) return;
+    let result;
     try {
-      store.receiveParticipants(token, await fetchParticipants(id));
+      result = await fetchParticipants(id);
     } catch (error) {
       store.failParticipants(token, error.message);
+      return;
     }
+    store.receiveParticipants(token, result);
   }
 
   function renderLegend(snapshot) {

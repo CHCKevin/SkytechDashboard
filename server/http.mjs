@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { defaultCsp } from './csp.mjs';
 
 const baseHeaders = {
   'Cache-Control': 'no-store',
   'X-Content-Type-Options': 'nosniff',
 };
-const defaultCsp = "default-src 'self'";
 
 export function createHandler({ source, mode, staticFiles = {} }) {
   return async (req, res) => {
