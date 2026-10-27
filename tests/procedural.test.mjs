@@ -55,3 +55,28 @@ test('the sky catalog is fixed, with a concentrated galactic band and every gala
   assert.equal(sky.nebulae.length, 8);
   assert.equal(sky.band.length, 70);
 });
+test('new details keep earlier traits unchanged for every planet', () => {
+  const pick = ({ kind, variant, tilt, spin, phase, ring }) => ({ kind, variant, tilt, spin, phase, ring });
+  assert.deepEqual(pick(planetTraits('426')), {
+    kind: 'rock', variant: 1, tilt: -0.39930373295210303, spin: 0.27769259120104833, phase: 3.415073868448691, ring: false,
+  });
+  assert.deepEqual(pick(planetTraits('7')), {
+    kind: 'gas', variant: 1, tilt: 0.12935313794296235, spin: 0.28352356551913543, phase: 6.232446584428123, ring: true,
+  });
+});
+test('clouds and moons are fixed per planet and physically sensible', () => {
+  const all = Array.from({ length: 400 }, (_, i) => planetTraits(String(i + 1)));
+  assert.deepEqual(new Set(all.map(t => t.moons.length)), new Set([0, 1, 2, 3]));
+  assert.ok(all.some(t => t.clouds) && all.every(t => !t.clouds || t.kind !== 'gas'), 'gas giants have bands, not clouds');
+  for (const t of all) {
+    if (t.clouds) assert.ok([0, 1].includes(t.clouds.variant) && t.clouds.spin > 0);
+    for (const moon of t.moons) {
+      assert.ok(moon.size >= 0.18 && moon.size <= 0.4, moon.size);
+      assert.ok(moon.orbit > (t.ring ? 3.9 : 2.4), 'moons orbit clear of the planet and its ring');
+      assert.ok(Math.abs(moon.speed) >= 0.2 && Math.abs(moon.speed) <= 0.6);
+      assert.ok(Math.abs(moon.inclination) <= 0.35);
+    }
+    const orbits = t.moons.map(m => m.orbit);
+    assert.deepEqual(orbits, [...orbits].sort((a, b) => a - b), 'moons keep separate, outward orbits');
+  }
+});

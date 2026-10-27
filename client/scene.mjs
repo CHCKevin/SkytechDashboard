@@ -5,7 +5,7 @@ import { EffectComposer } from '/vendor/postprocessing/EffectComposer.js';
 import { RenderPass } from '/vendor/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '/vendor/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '/vendor/postprocessing/OutputPass.js';
-import { galaxyCenter, planetPosition, cameraPreset } from './layout-3d.mjs';
+import { computeLayout, cameraPreset } from './layout-3d.mjs';
 import { createShipFleet } from './ships.mjs';
 import { createSky, glowTexture } from './sky.mjs';
 import { createPlanetLooks } from './planet-look.mjs';
@@ -69,6 +69,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   let selectedId = null;
   let crew = null; // { id, people }
   let flight = null;
+  let layout = computeLayout({ projects: [], workPackages: [] });
 
   function label(text, className) {
     const element = document.createElement('div');
@@ -84,16 +85,15 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
 
   function addGalaxy(project) {
     const group = new THREE.Group();
-    group.position.set(...galaxyCenter(project.id));
     const core = new THREE.Mesh(coreGeometry, coreMaterial);
     core.userData = { kind: 'project', id: project.id };
     const corona = glowSprite(0xc9b2ff, 0.55, 16);
-    const halo = glowSprite(0x7c3aed, 0.22, 90);
+    const halo = glowSprite(0x7c3aed, 0.22, 1);
     const tag = label('', 'galaxy-label');
     tag.position.set(0, 6.5, 0);
     group.add(core, corona, halo, tag);
     scene.add(group);
-    galaxies.set(project.id, { group, core, tag });
+    galaxies.set(project.id, { group, core, halo, tag });
   }
 
   function addPlanet(wp) {
@@ -114,7 +114,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   function updatePlanet(planet, wp) {
     planet.wp = wp;
     looks.restyle(planet, wp.status.color);
-    planet.root.position.set(...planetPosition(wp));
+    planet.root.position.set(...layout.planets.get(wp.id));
     planet.tag.element.textContent = planetLabel(wp);
     planet.root.visible = view.mode === 'universe' || (view.mode === 'galaxy' && wp.projectId === view.projectId);
     planet.root.scale.setScalar(wp.id === selectedId ? 1.8 : 1);
@@ -124,8 +124,12 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
     for (const planet of planets.values()) updatePlanet(planet, planet.wp);
   }
 
-  // 依 ID 增刪物件，不重建控制器，也不移動既有星系與星球。
+  // 依 ID 增刪物件，不重建控制器；位置由佈局決定，新項目排在外圈，既有星球不動。
   function setData(snapshot) {
+    const firstData = layout.galaxies.size === 0;
+    layout = computeLayout(snapshot);
+    // 初始視角是在沒有資料時算的；第一次拿到資料後依實際範圍重新取景。
+    if (firstData && layout.galaxies.size > 0) flyTo(cameraPreset(view, layout));
     const counts = new Map();
     for (const wp of snapshot.workPackages) counts.set(wp.projectId, (counts.get(wp.projectId) ?? 0) + 1);
     const projectIds = new Set(snapshot.projects.map(project => project.id));
@@ -134,7 +138,11 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
     }
     for (const project of snapshot.projects) {
       if (!galaxies.has(project.id)) addGalaxy(project);
-      galaxies.get(project.id).tag.element.textContent = `${project.name}（${counts.get(project.id) ?? 0}）`;
+      const galaxy = galaxies.get(project.id);
+      const { center, radius } = layout.galaxies.get(project.id);
+      galaxy.group.position.set(...center);
+      galaxy.halo.scale.setScalar(radius * 1.9);
+      galaxy.tag.element.textContent = `${project.name}（${counts.get(project.id) ?? 0}）`;
     }
     const ids = new Set(snapshot.workPackages.map(wp => wp.id));
     for (const [id, planet] of planets) {
@@ -181,7 +189,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   function setView(next) {
     view = next;
     refreshPlanets();
-    flyTo(cameraPreset(view));
+    flyTo(cameraPreset(view, layout));
   }
 
   function select(id) {
@@ -239,7 +247,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   new ResizeObserver(resize).observe(container);
   resize();
 
-  const initial = cameraPreset(view);
+  const initial = cameraPreset(view, layout);
   camera.position.set(...initial.position);
   controls.target.set(...initial.target);
 
@@ -259,7 +267,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
     // 背景跟著相機移動，看起來永遠在無限遠處。
     sky.position.copy(camera.position);
     for (const planet of planets.values()) {
-      if (planet.root.visible) planet.surface.rotation.y += planet.traits.spin * seconds;
+      if (planet.root.visible) looks.animate(planet, seconds);
     }
     fleet.update(time);
     updateLabels();
@@ -267,5 +275,5 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
     labelRenderer.render(scene, camera);
   });
 
-  return { setData, setView, select, showShips, resetView: () => flyTo(cameraPreset(view)) };
+  return { setData, setView, select, showShips, resetView: () => flyTo(cameraPreset(view, layout)) };
 }

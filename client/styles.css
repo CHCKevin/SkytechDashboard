@@ -45,6 +45,8 @@ a { color: #7dd3fc; }
 .badge { padding: 2px 8px; border-radius: 999px; background: #78350f; color: #fde68a; font-size: 12px; }
 .stage { position: relative; overflow: hidden; min-height: 0; }
 .scene, .label-layer { position: absolute; inset: 0; }
+/* CSS2DRenderer 會替每個標籤設 z-index；場景自成疊放層級，標籤才不會蓋到面板上。 */
+.scene { z-index: 0; }
 .label-layer { pointer-events: none; }
 .scene canvas { display: block; }
 .panel {

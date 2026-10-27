@@ -34,6 +34,16 @@ export function createPlanetLooks() {
   const textures = new Map(PLANET_KINDS.flatMap(kind => [0, 1].map(variant =>
     [`${kind}:${variant}`, surfaceTexture(kind, variant)])));
   const ringTexture = createRingTexture();
+  // 雲層是白色、半透明；衛星是灰色岩石，不帶狀態顏色，避免誤認為另一個項目。
+  const cloudGeometry = new THREE.SphereGeometry(RADIUS * 1.03, 40, 28);
+  const cloudMaterials = [0, 1].map(variant => new THREE.MeshStandardMaterial({
+    map: cloudTexture(variant), transparent: true, depthWrite: false, roughness: 1, metalness: 0,
+  }));
+  const moonGeometry = new THREE.SphereGeometry(1, 20, 14);
+  const moonMaterial = new THREE.MeshStandardMaterial({
+    color: '#e7e5e4', emissive: '#57534e', emissiveIntensity: 0.25,
+    map: textures.get('rock:0'), bumpMap: textures.get('rock:0'), bumpScale: 2, roughness: 1, metalness: 0,
+  });
   const surfaces = new Map();
   const atmospheres = new Map();
   const rings = new Map();
@@ -76,8 +86,35 @@ export function createPlanetLooks() {
       ring.rotation.x = Math.PI / 2;
       body.add(ring);
     }
+    let clouds = null;
+    if (traits.clouds) {
+      clouds = new THREE.Mesh(cloudGeometry, cloudMaterials[traits.clouds.variant]);
+      clouds.rotation.y = traits.phase * 2;
+      body.add(clouds);
+    }
     root.add(body);
-    return { root, surface, atmosphere, ring, traits, color: null };
+    // 每顆衛星：外層群組決定軌道傾角，內層群組旋轉即為公轉。
+    const orbits = traits.moons.map(moon => {
+      const plane = new THREE.Group();
+      plane.rotation.x = moon.inclination;
+      const orbit = new THREE.Group();
+      orbit.rotation.y = moon.phase;
+      const mesh = new THREE.Mesh(moonGeometry, moonMaterial);
+      mesh.position.x = moon.orbit;
+      mesh.scale.setScalar(moon.size);
+      orbit.add(mesh);
+      plane.add(orbit);
+      root.add(plane);
+      return { orbit, speed: moon.speed };
+    });
+    return { root, surface, atmosphere, ring, clouds, orbits, traits, color: null };
+  }
+
+  // 自轉、雲層飄移與衛星公轉；只對看得到的星球呼叫。
+  function animate(look, seconds) {
+    look.surface.rotation.y += look.traits.spin * seconds;
+    if (look.clouds) look.clouds.rotation.y += look.traits.clouds.spin * seconds;
+    for (const { orbit, speed } of look.orbits) orbit.rotation.y += speed * seconds;
   }
 
   function restyle(look, color) {
@@ -88,7 +125,33 @@ export function createPlanetLooks() {
     if (look.ring) look.ring.material = ringMaterial(color);
   }
 
-  return { create, restyle };
+  return { create, restyle, animate };
+}
+
+// 雲層：分形雜訊經過門檻後成為白色雲團，其餘透明；在球面取樣避免接縫。
+function cloudTexture(variant) {
+  const noise = createNoise3(500 + variant);
+  const canvas = document.createElement('canvas');
+  canvas.width = TEXTURE_WIDTH;
+  canvas.height = TEXTURE_HEIGHT;
+  const ctx = canvas.getContext('2d');
+  const image = ctx.createImageData(TEXTURE_WIDTH, TEXTURE_HEIGHT);
+  const coverage = variant === 0 ? 0.5 : 0.56;
+  for (let y = 0; y < TEXTURE_HEIGHT; y += 1) {
+    const lat = (0.5 - (y + 0.5) / TEXTURE_HEIGHT) * Math.PI;
+    for (let x = 0; x < TEXTURE_WIDTH; x += 1) {
+      const p = sphere(lat, ((x + 0.5) / TEXTURE_WIDTH) * Math.PI * 2);
+      // 先以低頻雜訊扭曲座標，雲團才會有拉長的氣流形狀。
+      const warp = noise(p[0] * 1.5, p[1] * 1.5, p[2] * 1.5) - 0.5;
+      const n = fractal(noise, p[0] * 3 + warp * 2, p[1] * 6, p[2] * 3 - warp * 2, 5);
+      const t = Math.min(1, Math.max(0, (n - coverage) / 0.14));
+      image.data.set([255, 255, 255, Math.round(t * t * (3 - 2 * t) * 230)], (y * TEXTURE_WIDTH + x) * 4);
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }
 
 // 等距長方投影的灰階材質；在球面座標取樣雜訊，經線接縫處連續。

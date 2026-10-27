@@ -60,7 +60,7 @@ export function fractal(noise, x, y, z, octaves = 4) {
 export function planetTraits(id) {
   const random = seededRandom(hash(`planet:${id}`));
   const kind = PLANET_KINDS[Math.floor(random() * PLANET_KINDS.length)];
-  return {
+  const traits = {
     kind,
     variant: random() < 0.5 ? 0 : 1,
     tilt: (random() - 0.5) * 0.9,
@@ -68,6 +68,27 @@ export function planetTraits(id) {
     phase: random() * Math.PI * 2,
     ring: kind === 'gas' && random() < 0.35,
   };
+  // 新細節接在原本的亂數序列之後，既有星球的類型、傾角與行星環不變。
+  const hasClouds = random() < 0.55;
+  traits.clouds = kind !== 'gas' && hasClouds
+    ? { variant: random() < 0.5 ? 0 : 1, spin: traits.spin * (1.2 + random() * 0.6) }
+    : null;
+  const roll = random();
+  const count = roll < 0.5 ? 0 : roll < 0.8 ? 1 : roll < 0.95 ? 2 : 3;
+  // 有行星環時衛星在環外側；每顆衛星的軌道依序向外，彼此不交錯。
+  let orbit = traits.ring ? 4.1 : 2.6;
+  traits.moons = Array.from({ length: count }, () => {
+    const moon = {
+      orbit: orbit + random() * 0.3,
+      size: 0.18 + random() * 0.22,
+      speed: (0.2 + random() * 0.4) * (random() < 0.85 ? 1 : -1),
+      phase: random() * Math.PI * 2,
+      inclination: (random() - 0.5) * 0.7,
+    };
+    orbit = moon.orbit + 0.9;
+    return moon;
+  });
+  return traits;
 }
 
 // 依恆星光譜型的大致比例：多數偏白黃橙，少數藍白。
