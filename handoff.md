@@ -171,3 +171,15 @@
   1. 在 OpenProject「我的帳號 → 存取權杖」建立 API token。
   2. 把 `config/example.json` 複製為 `config/local.json`，`mode` 改為 `"live"`，填入 token。不要貼到對話中。
   3. 由主控經工具審核連線 `192.168.31.13`，只輸出統計，並逐項確認上述 API 假設。
+
+## 2026-10-27 第四階段真實來源驗證（Task 7）
+- 使用者已建立 `config/local.json`（Git 忽略）；主控只把 `mode` 改為 `live`，token 未讀出、未輸出。服務以 `npm start` 啟動，啟動訊息為「即時模式已啟動」。
+- 統計：專案 5 個、工作項目 362 個、狀態 16 個；`complete: true`、`error: null`；首次載入約 8 秒。無負責人 87、群組負責人 1、無 `updatedAt` 0。參與者抽查（最新更新的項目）3 人、`complete: true`、沒有未知使用者。
+- API 假設逐項確認：
+  - offset 是頁碼：`offset=2` 回傳第 2 頁 100 筆，下一頁為 `offset=3`。✅
+  - 必須送 `filters=[]`：預設篩選 251 筆，空篩選 362 筆；包含 111 個已結案項目。✅
+  - 活動的 user 連結**沒有 title**（抽 15 項、24 筆皆無）；`/api/v3/users/{id}` 可讀，因此名字由查詢補上。✅
+  - 16 個狀態都有 color。✅
+  - API 根資源沒有提供 `coreVersion`（非管理員帳號），instanceName 為 SoftwareOpenProject。
+- 待使用者：在瀏覽器與 OpenProject 網頁核對至少一個專案、一個項目的標題、狀態、建立者、負責人，至少一位活動參與者，以及「在 OpenProject 開啟」連結。
+- 觀察：首次載入約 8 秒，期間頁面沒有載入提示以外的進度；列入第五／六階段（輪詢、效能）考量。
