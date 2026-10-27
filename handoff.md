@@ -1,7 +1,7 @@
 # Dashboard 工作交接
 
-最後更新：2026-10-26（Asia/Taipei）
-目前階段：第一～三階段已完成。第三階段（3D 前端）提交於 `feature/3d-frontend`（依序基於 `feature/demo-service`、`feature/foundation`；三個分支皆未合併至 master）。下一步為第四階段（OpenProject adapter），需要使用者提供 API token。
+最後更新：2026-10-27（Asia/Taipei）
+目前階段：第一～三階段已完成；第四階段（OpenProject adapter）離線部分（Task 1–6）已完成並提交於 `feature/openproject-adapter`（基於 `feature/3d-frontend`；所有功能分支皆未合併至 master）。下一步為 Task 7 真實來源驗證，需要使用者自建 API token 填入 `config/local.json`。
 
 ## 最新接續摘要
 - 使用者最後要求「記錄到 handoff」，本次僅更新交接；這不代表已批准設計或開始實作。
@@ -141,7 +141,7 @@
 - 下一步：第四階段 OpenProject adapter。需要使用者在 OpenProject 個人設定建立 API token，並自行填入 `config/local.json`（不要貼在對話中）；實作前先撰寫測試先行計畫，以本機假來源測試分頁與錯誤碼。
 
 ## 2026-10-27 第四階段計畫
-- 已完成 `docs/superpowers/plans/2026-10-27-dashboard-openproject-adapter.md`，等待使用者審閱；尚未實作。分支 `feature/openproject-adapter`（基於 `feature/3d-frontend`）。
+- 已完成 `docs/superpowers/plans/2026-10-27-dashboard-openproject-adapter.md`，使用者已批准並要求以子代理執行（結果見下節）。分支 `feature/openproject-adapter`（基於 `feature/3d-frontend`）。
 - 分層設計：
   - `server/openproject/client.mjs`：唯一持有 token；只發 GET、只送往同來源 `/api/v3`、不跟隨重新導向；逾時 10 秒；429/502/503/504 重試 2 次；併發上限 4；分頁跟隨 `nextByOffset`，並檢查重複與筆數。
   - `normalize.mjs`：HAL 轉契約；群組與佔位使用者的 ID 加前綴。
@@ -149,3 +149,25 @@
   - `activities.mjs`：以 `updatedAt` 為快取鍵；沒有 `updatedAt` 時 TTL 60 秒；缺名字時查使用者並快取。
 - Task 1–6 完全離線，用本機假 OpenProject 測試；預計共 67 個測試。Task 7 為真實驗證，需要使用者自建 API token 填入 `config/local.json`。
 - 待真實伺服器確認的 API 假設：分頁 offset 為頁碼、需送 `filters=[]` 才含已結案項目、活動 user 連結是否有 title、狀態是否有 color。
+
+## 2026-10-27 第四階段離線實作結果（Task 1–6）
+- 提交（`feature/openproject-adapter`）：`14aaeaa` client、`a85bee0` normalize、`2c81769` snapshot、`bbf6906` activities、`681982f` live 接線與前端提示、`1186401` 審查修正。
+- 計畫程式碼逐字比對一致（Task 5 的 main.mjs 為局部修改，已人工核對 diff）。
+- 驗證：`npm test` 71 個通過、0 失敗（計畫的 67 個加上審查修正新增的 4 個）；示例模式無頭 Chrome 檢查 34/34 通過，沒有退化；`git grep "apikey:"` 只出現在 client、測試與計畫文件；`config/local.json` 不存在且被 Git 忽略。
+- 品質審查沒有 Critical。已修正：
+  - I1：查使用者名稱遇到暫時性錯誤（逾時、限流、5xx）時不再永久快取；只有 403／404 記住結果；有暫時性漏名時不快取參與者結果。
+  - I2：分頁筆數與 total 不符或 id 重複（讀取期間資料變動造成頁面位移）時整輪重讀一次，仍不一致才回報 `pagination_incomplete`。
+  - I3：快取與刷新間隔改從上一輪「完成」時間起算，避免載入超過 10 秒時可連續觸發全量載入。
+  - M1 部分：讀取回應內容時連線中斷改報 `network`，只有 JSON 解析失敗才報 `invalid_response`。
+- 延後項目（審查 Minor／效能）：
+  - 逾時與網路錯誤不重試。
+  - Retry-After 不支援 HTTP-date 格式。
+  - 參與者快取沒有上限，同一項目的請求沒有合併，參與者的 `refresh` 沒有限流。
+  - snapshot 其中一個集合失敗時，其他請求不會取消。
+  - 參與者 id 有前導零時會產生不同的快取鍵。
+  - 效能（第六階段）：全量讀取 `description.raw`，大量資料時一輪可能超過 30 秒；快照每次重新序列化；沒有回應大小上限。
+  - 安全取捨：baseUrl 為 http 時，token 以 Basic 在內網明文傳送。
+- 下一步（Task 7，需要使用者）：
+  1. 在 OpenProject「我的帳號 → 存取權杖」建立 API token。
+  2. 把 `config/example.json` 複製為 `config/local.json`，`mode` 改為 `"live"`，填入 token。不要貼到對話中。
+  3. 由主控經工具審核連線 `192.168.31.13`，只輸出統計，並逐項確認上述 API 假設。
