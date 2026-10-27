@@ -6,6 +6,7 @@ const types = {
   '.mjs': 'text/javascript; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml',
 };
 
 // 公開路徑 → 專案內檔案；只有列在這裡的檔案會被提供。
@@ -19,6 +20,7 @@ const entries = {
   '/scene.mjs': 'client/scene.mjs',
   '/ships.mjs': 'client/ships.mjs',
   '/styles.css': 'client/styles.css',
+  '/favicon.svg': 'client/favicon.svg',
   '/shared/layout.mjs': 'shared/layout.mjs',
   '/vendor/three.module.js': 'node_modules/three/build/three.module.js',
   '/vendor/OrbitControls.js': 'node_modules/three/examples/jsm/controls/OrbitControls.js',

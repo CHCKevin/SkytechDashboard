@@ -2,7 +2,7 @@ import { positionFor } from '../shared/layout.mjs';
 
 // 世界座標只由 ID 決定，資料更新不會讓星系或星球跳動。
 const GALAXY_SPREAD = 4;
-const PLANET_SPREAD = 0.3;
+const PLANET_SPREAD = 0.6;
 
 export function galaxyCenter(projectId) {
   return positionFor('project', projectId).map(v => v * GALAXY_SPREAD);
@@ -24,7 +24,7 @@ export function shipPosition(center, index, count, time) {
 export function cameraPreset(view) {
   if (view.mode === 'galaxy') {
     const target = galaxyCenter(view.projectId);
-    return { target, position: [target[0], target[1] + 25, target[2] + 45] };
+    return { target, position: [target[0], target[1] + 40, target[2] + 75] };
   }
   const scale = view.mode === 'universe' ? 1.25 : 1;
   return { target: [0, 0, 0], position: [0, 240 * scale, 360 * scale] };

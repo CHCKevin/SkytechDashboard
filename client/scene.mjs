@@ -5,7 +5,7 @@ import { galaxyCenter, planetPosition, cameraPreset } from './layout-3d.mjs';
 import { createShipFleet } from './ships.mjs';
 
 const BATCH_SIZE = 200;
-const LABEL_DISTANCE = 90;
+const LABEL_DISTANCE = 140;
 const FLIGHT_MS = 700;
 const CLICK_TOLERANCE = 5;
 
@@ -31,11 +31,11 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   controls.maxDistance = 2000;
 
   const planetGeometry = new THREE.SphereGeometry(1.6, 24, 16);
-  const coreGeometry = new THREE.SphereGeometry(5, 32, 16);
-  const haloGeometry = new THREE.SphereGeometry(14, 32, 16);
+  const coreGeometry = new THREE.SphereGeometry(3.5, 32, 16);
+  const haloGeometry = new THREE.SphereGeometry(28, 32, 16);
   const coreMaterial = new THREE.MeshStandardMaterial({ color: 0xc4b5fd, emissive: 0x7c3aed, emissiveIntensity: 0.8 });
   const haloMaterial = new THREE.MeshBasicMaterial({
-    color: 0x7c3aed, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false,
+    color: 0x7c3aed, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false,
   });
   const planetMaterials = new Map();
 
@@ -74,7 +74,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
     core.userData = { kind: 'project', id: project.id };
     const halo = new THREE.Mesh(haloGeometry, haloMaterial);
     const tag = label('', 'galaxy-label');
-    tag.position.set(0, 9, 0);
+    tag.position.set(0, 6.5, 0);
     group.add(core, halo, tag);
     scene.add(group);
     galaxies.set(project.id, { group, core, tag });

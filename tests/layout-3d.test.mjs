@@ -7,7 +7,7 @@ const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 test('planets sit near their own galaxy center', () => {
   for (const id of ['1001', '1002', '1003', '1004']) {
     const d = distance(planetPosition({ id, projectId: '101' }), galaxyCenter('101'));
-    assert.ok(d >= 5 && d <= 25, `${id}: ${d}`);
+    assert.ok(d >= 10 && d <= 50, `${id}: ${d}`);
   }
 });
 test('positions are stable and depend only on IDs', () => {
