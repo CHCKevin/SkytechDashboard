@@ -56,3 +56,11 @@ export function safeUrl(value) {
     return null;
   }
 }
+
+export function snapshotNotice(snapshot) {
+  if (snapshot.error) {
+    const reason = `資料來源錯誤：${snapshot.error.message}`;
+    return snapshot.stale ? `${reason}。目前顯示 ${formatTime(snapshot.lastSuccessAt)} 的資料。` : reason;
+  }
+  return snapshot.complete ? '' : '資料未完整載入，畫面可能缺少部分項目。';
+}

@@ -1,7 +1,7 @@
 import { fetchSnapshot, fetchParticipants } from './api.mjs';
 import { createStore } from './store.mjs';
 import {
-  MISSING, legendEntries, projectSummaries, visibleWorkPackages, detailFields, participantsStatus, safeUrl,
+  MISSING, legendEntries, projectSummaries, visibleWorkPackages, detailFields, participantsStatus, safeUrl, snapshotNotice,
 } from './view-model.mjs';
 
 const $ = id => document.getElementById(id);
@@ -158,7 +158,7 @@ async function start() {
   try {
     const snapshot = await fetchSnapshot();
     store.setSnapshot(snapshot);
-    showMessage(snapshot.complete ? '' : '資料未完整載入，畫面可能缺少部分項目。');
+    showMessage(snapshotNotice(snapshot));
   } catch (error) {
     showMessage(`無法載入資料：${error.message}。請確認本機服務已啟動後重新整理頁面。`);
   }

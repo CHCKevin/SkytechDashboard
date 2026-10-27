@@ -6,6 +6,7 @@ import { loadConfig } from './config.mjs';
 import { pageCsp } from './csp.mjs';
 import { createDemoSource } from './demo.mjs';
 import { createHandler, listen } from './http.mjs';
+import { createLiveSource } from './live-source.mjs';
 import { assertStaticFiles, createStaticFiles } from './static-files.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -14,15 +15,12 @@ async function main() {
   // 相對路徑以專案根目錄為基準，與執行時所在目錄無關。
   const { values } = parseArgs({ options: { config: { type: 'string', default: 'config/local.json' } } });
   const config = await loadConfig(resolve(root, values.config));
-  if (config.mode !== 'demo') {
-    throw new Error('Live mode is not implemented yet; use demo mode until the OpenProject adapter is available');
-  }
   const staticFiles = createStaticFiles(root);
   await assertStaticFiles(staticFiles);
   staticFiles['/'].csp = pageCsp(await readFile(staticFiles['/'].path, 'utf8'));
-  const handler = createHandler({ source: createDemoSource(), mode: config.mode, staticFiles });
+  const handler = createHandler({ source: config.mode === 'demo' ? createDemoSource() : createLiveSource(config), mode: config.mode, staticFiles });
   const server = await listen(handler, { host: config.host, port: config.port });
-  console.log(`示例模式已啟動：http://${config.host}:${config.port}/`);
+  console.log(`${config.mode === 'demo' ? '示例模式' : '即時模式'}已啟動：http://${config.host}:${config.port}/`);
   const stop = () => {
     server.close(() => process.exit(0));
     // 卡住的連線不應讓關閉永遠等待。

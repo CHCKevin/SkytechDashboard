@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createDemoSource } from '../server/demo.mjs';
 import {
   MISSING, legendEntries, projectSummaries, visibleWorkPackages, detailFields,
-  participantsStatus, safeUrl, formatTime,
+  participantsStatus, safeUrl, formatTime, snapshotNotice,
 } from '../client/view-model.mjs';
 
 const snapshot = await createDemoSource().getSnapshot({ refresh: false });
@@ -50,4 +50,13 @@ test('only http(s) links are allowed', () => {
   assert.equal(safeUrl('javascript:alert(1)'), null);
   assert.equal(safeUrl('not a url'), null);
   assert.equal(safeUrl(null), null);
+});
+test('snapshot notices explain source errors and stale data', () => {
+  assert.equal(snapshotNotice(snapshot), '');
+  assert.equal(snapshotNotice({ ...snapshot, complete: false }), '資料未完整載入，畫面可能缺少部分項目。');
+  const error = { code: 'unauthorized', message: 'OpenProject 驗證失敗，請確認 API token' };
+  assert.equal(snapshotNotice({ ...snapshot, complete: false, error }), '資料來源錯誤：OpenProject 驗證失敗，請確認 API token');
+  const notice = snapshotNotice({ ...snapshot, stale: true, error, lastSuccessAt: '2026-10-27T00:00:00.000Z' });
+  assert.ok(notice.startsWith('資料來源錯誤：OpenProject 驗證失敗，請確認 API token。目前顯示 '), notice);
+  assert.ok(notice.endsWith(' 的資料。'), notice);
 });
