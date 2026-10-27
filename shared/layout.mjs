@@ -1,6 +1,6 @@
 const palette = ['#38bdf8', '#a78bfa', '#34d399', '#fbbf24', '#fb7185', '#22d3ee'];
 
-function hash(text) {
+export function hash(text) {
   let value = 2166136261;
   for (const char of String(text)) {
     value = Math.imul(value ^ char.charCodeAt(0), 16777619);

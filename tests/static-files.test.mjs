@@ -13,6 +13,9 @@ test('whitelist covers the client and vendored three files, and they exist', asy
   assert.equal(files['/main.mjs'].type, 'text/javascript; charset=utf-8');
   assert.equal(files['/styles.css'].type, 'text/css; charset=utf-8');
   assert.equal(files['/favicon.svg'].type, 'image/svg+xml');
+  for (const url of ['/procedural.mjs', '/sky.mjs', '/planet-look.mjs']) {
+    assert.equal(files[url].path, join(root, 'client', url.slice(1)), url);
+  }
   assert.equal(files['/shared/layout.mjs'].path, join(root, 'shared', 'layout.mjs'));
   assert.equal(files['/vendor/three.module.js'].path, join(root, 'node_modules', 'three', 'build', 'three.module.js'));
   for (const url of Object.keys(files)) {

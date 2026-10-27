@@ -64,3 +64,8 @@ export function snapshotNotice(snapshot) {
   }
   return snapshot.complete ? '' : '資料未完整載入，畫面可能缺少部分項目。';
 }
+
+// 星球標籤只顯示 ID，完整標題在詳情面板。
+export function planetLabel(wp) {
+  return `#${wp.id}`;
+}

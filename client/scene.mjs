@@ -3,6 +3,9 @@ import { OrbitControls } from '/vendor/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from '/vendor/CSS2DRenderer.js';
 import { galaxyCenter, planetPosition, cameraPreset } from './layout-3d.mjs';
 import { createShipFleet } from './ships.mjs';
+import { createSky } from './sky.mjs';
+import { createPlanetLooks } from './planet-look.mjs';
+import { planetLabel } from './view-model.mjs';
 
 const BATCH_SIZE = 200;
 const LABEL_DISTANCE = 140;
@@ -18,11 +21,13 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   container.append(labelRenderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x05060f);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+  scene.background = new THREE.Color(0x020309);
+  // 環境光偏暗，星球才有明顯的亮面與暗面。
+  scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+  const sun = new THREE.DirectionalLight(0xfff4e6, 2.2);
   sun.position.set(200, 300, 100);
-  scene.add(sun, createStarfield());
+  const sky = createSky();
+  scene.add(sun, sky);
 
   const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 6000);
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -30,14 +35,13 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   controls.screenSpacePanning = true;
   controls.maxDistance = 2000;
 
-  const planetGeometry = new THREE.SphereGeometry(1.6, 24, 16);
   const coreGeometry = new THREE.SphereGeometry(3.5, 32, 16);
   const haloGeometry = new THREE.SphereGeometry(28, 32, 16);
   const coreMaterial = new THREE.MeshStandardMaterial({ color: 0xc4b5fd, emissive: 0x7c3aed, emissiveIntensity: 0.8 });
   const haloMaterial = new THREE.MeshBasicMaterial({
     color: 0x7c3aed, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false,
   });
-  const planetMaterials = new Map();
+  const looks = createPlanetLooks();
 
   const galaxies = new Map();
   const planets = new Map();
@@ -54,13 +58,6 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
     element.className = className;
     element.textContent = text;
     return new CSS2DObject(element);
-  }
-
-  function materialFor(color) {
-    if (!planetMaterials.has(color)) {
-      planetMaterials.set(color, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.25, roughness: 0.6 }));
-    }
-    return planetMaterials.get(color);
   }
 
   function removeObject(object) {
@@ -82,26 +79,27 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   }
 
   function addPlanet(wp) {
-    const mesh = new THREE.Mesh(planetGeometry, materialFor(wp.status.color));
-    mesh.userData = { kind: 'work-package', id: wp.id };
+    // root 管位置、顯示、縮放與標籤；surface 負責點選與自轉。
+    const look = looks.create(wp);
+    look.surface.userData = { kind: 'work-package', id: wp.id };
     const tag = label('', 'planet-label');
     tag.position.set(0, 2.6, 0);
-    mesh.add(tag);
-    scene.add(mesh);
-    const planet = { mesh, tag, wp };
+    look.root.add(tag);
+    scene.add(look.root);
+    const planet = { ...look, tag, wp };
     planets.set(wp.id, planet);
     updatePlanet(planet, wp);
     // 選取的星球若仍在分批佇列中，建立後才補上太空船。
-    if (crew?.id === wp.id) fleet.show(mesh.position, crew.people);
+    if (crew?.id === wp.id) fleet.show(look.root.position, crew.people);
   }
 
   function updatePlanet(planet, wp) {
     planet.wp = wp;
-    planet.mesh.material = materialFor(wp.status.color);
-    planet.mesh.position.set(...planetPosition(wp));
-    planet.tag.element.textContent = wp.subject;
-    planet.mesh.visible = view.mode === 'universe' || (view.mode === 'galaxy' && wp.projectId === view.projectId);
-    planet.mesh.scale.setScalar(wp.id === selectedId ? 1.8 : 1);
+    looks.restyle(planet, wp.status.color);
+    planet.root.position.set(...planetPosition(wp));
+    planet.tag.element.textContent = planetLabel(wp);
+    planet.root.visible = view.mode === 'universe' || (view.mode === 'galaxy' && wp.projectId === view.projectId);
+    planet.root.scale.setScalar(wp.id === selectedId ? 1.8 : 1);
   }
 
   function refreshPlanets() {
@@ -122,7 +120,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
     }
     const ids = new Set(snapshot.workPackages.map(wp => wp.id));
     for (const [id, planet] of planets) {
-      if (!ids.has(id)) { removeObject(planet.mesh); planets.delete(id); }
+      if (!ids.has(id)) { removeObject(planet.root); planets.delete(id); }
     }
     pending = [];
     const queued = new Set();
@@ -145,7 +143,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
 
   function updateLabels() {
     for (const planet of planets.values()) {
-      const near = camera.position.distanceTo(planet.mesh.position) < LABEL_DISTANCE;
+      const near = camera.position.distanceTo(planet.root.position) < LABEL_DISTANCE;
       planet.tag.visible = planet.wp.id === selectedId || near;
     }
   }
@@ -175,7 +173,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
     if (id !== selectedId) return;
     crew = { id, people };
     const planet = planets.get(id);
-    if (planet) fleet.show(planet.mesh.position, people);
+    if (planet) fleet.show(planet.root.position, people);
   }
 
   const raycaster = new THREE.Raycaster();
@@ -197,7 +195,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
     raycaster.setFromCamera(pointer, camera);
     const targets = [
       ...[...galaxies.values()].map(galaxy => galaxy.core),
-      ...[...planets.values()].filter(planet => planet.mesh.visible).map(planet => planet.mesh),
+      ...[...planets.values()].filter(planet => planet.root.visible).map(planet => planet.surface),
     ];
     const [hit] = raycaster.intersectObjects(targets, false);
     if (!hit) return;
@@ -222,7 +220,10 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   camera.position.set(...initial.position);
   controls.target.set(...initial.target);
 
+  let lastTime = null;
   renderer.setAnimationLoop(time => {
+    const seconds = lastTime === null ? 0 : Math.min((time - lastTime) / 1000, 0.1);
+    lastTime = time;
     addPendingBatch();
     if (flight) {
       const t = Math.min((performance.now() - flight.start) / FLIGHT_MS, 1);
@@ -232,6 +233,11 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
       if (t === 1) flight = null;
     }
     controls.update();
+    // 背景跟著相機移動，看起來永遠在無限遠處。
+    sky.position.copy(camera.position);
+    for (const planet of planets.values()) {
+      if (planet.root.visible) planet.surface.rotation.y += planet.traits.spin * seconds;
+    }
     fleet.update(time);
     updateLabels();
     renderer.render(scene, camera);
@@ -239,16 +245,4 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   });
 
   return { setData, setView, select, showShips, resetView: () => flyTo(cameraPreset(view)) };
-}
-
-function createStarfield() {
-  const count = 2000;
-  const positions = new Float32Array(count * 3);
-  for (let i = 0; i < count; i += 1) {
-    const point = new THREE.Vector3().randomDirection().multiplyScalar(1500 + Math.random() * 1500);
-    positions.set(point.toArray(), i * 3);
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  return new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0x94a3b8, size: 1.5, sizeAttenuation: false }));
 }

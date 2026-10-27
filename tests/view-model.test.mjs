@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createDemoSource } from '../server/demo.mjs';
 import {
   MISSING, legendEntries, projectSummaries, visibleWorkPackages, detailFields,
-  participantsStatus, safeUrl, formatTime, snapshotNotice,
+  participantsStatus, safeUrl, formatTime, snapshotNotice, planetLabel,
 } from '../client/view-model.mjs';
 
 const snapshot = await createDemoSource().getSnapshot({ refresh: false });
@@ -59,4 +59,7 @@ test('snapshot notices explain source errors and stale data', () => {
   const notice = snapshotNotice({ ...snapshot, stale: true, error, lastSuccessAt: '2026-10-27T00:00:00.000Z' });
   assert.ok(notice.startsWith('資料來源錯誤：OpenProject 驗證失敗，請確認 API token。目前顯示 '), notice);
   assert.ok(notice.endsWith(' 的資料。'), notice);
+});
+test('planet labels show only the work package ID', () => {
+  assert.equal(planetLabel(byId('1002')), '#1002');
 });
