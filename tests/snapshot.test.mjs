@@ -83,3 +83,14 @@ test('a first failure returns an explicit empty error snapshot', async () => {
     });
   });
 });
+test('refresh spacing counts from when the previous load finished', async () => {
+  let clock;
+  const base = fixtureRoutes();
+  const routes = fixtureRoutes({ '/api/v3/work_packages': url => { clock.advance(12_000); return base(url); } });
+  await withLoader(routes, async context => {
+    ({ clock } = context);
+    await context.loader.getSnapshot();
+    await context.loader.getSnapshot({ refresh: true });
+    assert.equal(statusRequests(context.fake), 1);
+  });
+});

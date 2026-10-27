@@ -3,6 +3,8 @@ import { SourceError, errorInfo } from './openproject/errors.mjs';
 import { personFromLink } from './openproject/normalize.mjs';
 
 const NO_UPDATED_AT_TTL_MS = 60_000;
+// 這兩種查名失敗是穩定結果，可以記住；其他（逾時、限流、伺服器錯誤）下次再查。
+const STABLE_LOOKUP_ERRORS = new Set(['forbidden', 'not_found']);
 
 export function createParticipantsLoader({ client, now = () => Date.now() }) {
   const cache = new Map();
@@ -13,7 +15,10 @@ export function createParticipantsLoader({ client, now = () => Date.now() }) {
     if (!person || person.name !== null || !/^\d+$/.test(person.id ?? '')) return person;
     if (!userNames.has(person.id)) {
       userNames.set(person.id, client.getJson(`/api/v3/users/${person.id}`)
-        .then(user => (typeof user?.name === 'string' ? user.name : null), () => null));
+        .then(user => (typeof user?.name === 'string' ? user.name : null), error => {
+          if (!(error instanceof SourceError && STABLE_LOOKUP_ERRORS.has(error.code))) userNames.delete(person.id);
+          return null;
+        }));
     }
     return { ...person, name: await userNames.get(person.id) };
   }
@@ -48,12 +53,15 @@ export function createParticipantsLoader({ client, now = () => Date.now() }) {
     } catch (error) {
       return partial(id, updatedAt, roles, error);
     }
-    const [author, assignee, ...others] = await Promise.all([...roles, ...actors].map(withName));
+    const named = await Promise.all([...roles, ...actors].map(withName));
+    const [author, assignee, ...others] = named;
     const result = {
       workPackageId: id, workPackageUpdatedAt: updatedAt,
       people: collectParticipants(author, assignee, others), complete: true, error: null,
     };
-    cache.set(id, { updatedAt, result, expiresAt: now() + NO_UPDATED_AT_TTL_MS });
+    // 有名字因暫時性錯誤沒查到時不快取，下次選取再補。
+    const missedName = named.some(person => person?.name === null && /^\d+$/.test(person.id ?? '') && !userNames.has(person.id));
+    if (!missedName) cache.set(id, { updatedAt, result, expiresAt: now() + NO_UPDATED_AT_TTL_MS });
     return result;
   }
 

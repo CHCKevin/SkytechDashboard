@@ -78,3 +78,18 @@ test('failures reading the work package itself are reported, not thrown', async 
     });
   });
 });
+test('transient name lookup failures are retried later instead of cached', async () => {
+  let failures = 3;
+  const base = fixtureRoutes();
+  const routes = fixtureRoutes({ '/api/v3/users/8': url => (failures-- > 0 ? { status: 503, body: {} } : base(url)) });
+  await withParticipants(routes, async ({ loader, fake }) => {
+    const first = await loader.getParticipants('11');
+    assert.equal(first.people.find(p => p.id === '8').name, '未知使用者');
+    const second = await loader.getParticipants('11');
+    assert.equal(second.people.find(p => p.id === '8').name, '陳大文');
+    assert.equal(activityRequests(fake), 2, 'results with transient misses are not cached');
+    await loader.getParticipants('11');
+    assert.equal(activityRequests(fake), 2);
+    assert.equal(fake.requests.filter(r => r.path === '/api/v3/users/9').length, 1, 'forbidden lookups stay cached');
+  });
+});

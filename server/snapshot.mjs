@@ -7,7 +7,7 @@ const MIN_REFRESH_MS = 10_000;
 export function createSnapshotLoader({ client, baseUrl, now = () => Date.now() }) {
   let lastGood = null;
   let latest = null;
-  let startedAt = -Infinity;
+  let finishedAt = -Infinity;
   let inFlight = null;
 
   async function load() {
@@ -53,19 +53,18 @@ export function createSnapshotLoader({ client, baseUrl, now = () => Date.now() }
   }
 
   function start() {
-    startedAt = now();
     inFlight = load()
       .then(snapshot => { lastGood = snapshot; return snapshot; }, failed)
-      .then(result => { latest = result; inFlight = null; return result; });
+      .then(result => { latest = result; finishedAt = now(); inFlight = null; return result; });
     return inFlight;
   }
 
   return {
-    // 同時請求共用一輪；刷新可能被其他網頁觸發，因此限制頻率；錯誤結果也至少保留 10 秒。
+    // 同時請求共用一輪；刷新可能被其他網頁觸發，因此從上一輪完成起算限制頻率；錯誤結果也至少保留 10 秒。
     async getSnapshot({ refresh = false } = {}) {
       if (inFlight) return inFlight;
       const maxAge = refresh || latest?.error ? MIN_REFRESH_MS : MAX_AGE_MS;
-      if (latest && now() - startedAt < maxAge) return latest;
+      if (latest && now() - finishedAt < maxAge) return latest;
       return start();
     },
   };

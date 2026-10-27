@@ -42,7 +42,9 @@ export function createClient({
           try {
             return await res.json();
           } catch (error) {
-            throw new SourceError(error?.name === 'TimeoutError' ? 'timeout' : 'invalid_response');
+            // 只有 JSON 解析失敗才是格式問題；讀取中斷屬於連線問題。
+            if (error?.name === 'SyntaxError') throw new SourceError('invalid_response');
+            throw new SourceError(error?.name === 'TimeoutError' ? 'timeout' : 'network');
           }
         }
         await res.body?.cancel();
@@ -59,8 +61,16 @@ export function createClient({
     });
   }
 
-  // 讀完所有分頁才回傳；重複、越界或筆數不符一律視為錯誤，不悄悄截斷。
+  // 讀完所有分頁才回傳；讀取期間資料變動會讓頁面位移，因此不一致時整輪重讀一次，仍不一致才回報，不悄悄截斷。
   async function getAll(path, params = {}) {
+    for (let attempt = 0; ; attempt += 1) {
+      const { elements, total } = await readPages(path, params);
+      if (isConsistent(elements, total)) return elements;
+      if (attempt >= 1) throw new SourceError('pagination_incomplete');
+    }
+  }
+
+  async function readPages(path, params) {
     const first = resolve(path);
     for (const [key, value] of Object.entries({ pageSize: PAGE_SIZE, offset: 1, ...params })) {
       first.searchParams.set(key, value);
@@ -81,11 +91,15 @@ export function createClient({
       const href = page._links?.nextByOffset?.href;
       next = href ? resolve(href).href : null;
     }
-    if (total !== null && elements.length !== total) throw new SourceError('pagination_incomplete');
-    return elements;
+    return { elements, total };
   }
 
   return { getJson, getAll };
+}
+
+function isConsistent(elements, total) {
+  const ids = elements.map(element => element?.id).filter(id => id !== undefined && id !== null);
+  return (total === null || elements.length === total) && new Set(ids).size === ids.length;
 }
 
 function retryDelay(res, attempt) {

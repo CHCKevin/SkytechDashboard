@@ -124,3 +124,21 @@ test('limits concurrent requests to four', async () => {
     assert.equal(fake.requests.length, 10);
   });
 });
+test('inconsistent pages are re-read once before failing', async () => {
+  let round = 0;
+  await withFake(url => {
+    if (url.searchParams.get('offset') === '1') round += 1;
+    return url.searchParams.get('offset') === '2'
+      ? { body: collection(round === 1 ? [{ id: 2 }] : [{ id: 3 }], { total: 3 }) }
+      : { body: collection([{ id: 1 }, { id: 2 }], { total: 3, next: '/api/v3/projects?offset=2&pageSize=2' }) };
+  }, async fake => {
+    const items = await clientFor(fake).getAll('/api/v3/projects', { pageSize: 2 });
+    assert.deepEqual(items.map(item => item.id), [1, 2, 3]);
+    assert.equal(fake.requests.length, 4);
+  });
+});
+test('a connection dropped while reading the body is a network error', async () => {
+  await withFake(() => ({ body: '{"a":', headers: { 'Content-Length': '100', Connection: 'close' } }), async fake => {
+    await rejectsWith(clientFor(fake).getJson('/api/v3'), 'network');
+  });
+});
