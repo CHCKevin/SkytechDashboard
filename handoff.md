@@ -139,3 +139,13 @@
   - 第四階段：正規化後 `status` 必為非 null（scene／legend 依賴此契約）；`refresh` 需合併或限流。
   - 次要：Esc 後焦點回到清單、`hasWebGL` 測試用 context 未釋放、飛行與阻尼殘留漂移。
 - 下一步：第四階段 OpenProject adapter。需要使用者在 OpenProject 個人設定建立 API token，並自行填入 `config/local.json`（不要貼在對話中）；實作前先撰寫測試先行計畫，以本機假來源測試分頁與錯誤碼。
+
+## 2026-10-27 第四階段計畫
+- 已完成 `docs/superpowers/plans/2026-10-27-dashboard-openproject-adapter.md`，等待使用者審閱；尚未實作。分支 `feature/openproject-adapter`（基於 `feature/3d-frontend`）。
+- 分層設計：
+  - `server/openproject/client.mjs`：唯一持有 token；只發 GET、只送往同來源 `/api/v3`、不跟隨重新導向；逾時 10 秒；429/502/503/504 重試 2 次；併發上限 4；分頁跟隨 `nextByOffset`，並檢查重複與筆數。
+  - `normalize.mjs`：HAL 轉契約；群組與佔位使用者的 ID 加前綴。
+  - `snapshot.mjs`：一般請求快取 30 秒、刷新至少間隔 10 秒、同時請求共用一輪、失敗時保留舊資料並標為過期。
+  - `activities.mjs`：以 `updatedAt` 為快取鍵；沒有 `updatedAt` 時 TTL 60 秒；缺名字時查使用者並快取。
+- Task 1–6 完全離線，用本機假 OpenProject 測試；預計共 67 個測試。Task 7 為真實驗證，需要使用者自建 API token 填入 `config/local.json`。
+- 待真實伺服器確認的 API 假設：分頁 offset 為頁碼、需送 `filters=[]` 才含已結案項目、活動 user 連結是否有 title、狀態是否有 color。
