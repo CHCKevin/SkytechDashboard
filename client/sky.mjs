@@ -84,6 +84,12 @@ function radial(ctx, x, y, radius, stops) {
   ctx.fill();
 }
 
+// 恆星光暈：中心亮、向外平滑衰減；星系核心與周圍光芒共用。
+export function glowTexture() {
+  return canvasTexture(128, (ctx, s) => radial(ctx, s / 2, s / 2, s / 2,
+    [[0, 'rgba(255,255,255,1)'], [0.12, 'rgba(255,255,255,0.65)'], [0.35, 'rgba(255,255,255,0.18)'], [1, 'rgba(255,255,255,0)']]));
+}
+
 function softDotTexture() {
   return canvasTexture(64, (ctx, s) => radial(ctx, s / 2, s / 2, s / 2,
     [[0, 'rgba(255,255,255,1)'], [0.25, 'rgba(255,255,255,0.8)'], [1, 'rgba(255,255,255,0)']]));

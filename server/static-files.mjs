@@ -28,6 +28,10 @@ const entries = {
   '/vendor/three.module.js': 'node_modules/three/build/three.module.js',
   '/vendor/OrbitControls.js': 'node_modules/three/examples/jsm/controls/OrbitControls.js',
   '/vendor/CSS2DRenderer.js': 'node_modules/three/examples/jsm/renderers/CSS2DRenderer.js',
+  ...Object.fromEntries(['EffectComposer', 'RenderPass', 'UnrealBloomPass', 'OutputPass', 'Pass', 'ShaderPass', 'MaskPass']
+    .map(name => [`/vendor/postprocessing/${name}.js`, `node_modules/three/examples/jsm/postprocessing/${name}.js`])),
+  ...Object.fromEntries(['CopyShader', 'LuminosityHighPassShader', 'OutputShader']
+    .map(name => [`/vendor/shaders/${name}.js`, `node_modules/three/examples/jsm/shaders/${name}.js`])),
 };
 
 export function createStaticFiles(root) {

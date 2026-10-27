@@ -1,9 +1,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from '/vendor/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from '/vendor/CSS2DRenderer.js';
+import { EffectComposer } from '/vendor/postprocessing/EffectComposer.js';
+import { RenderPass } from '/vendor/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from '/vendor/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from '/vendor/postprocessing/OutputPass.js';
 import { galaxyCenter, planetPosition, cameraPreset } from './layout-3d.mjs';
 import { createShipFleet } from './ships.mjs';
-import { createSky } from './sky.mjs';
+import { createSky, glowTexture } from './sky.mjs';
 import { createPlanetLooks } from './planet-look.mjs';
 import { planetLabel } from './view-model.mjs';
 
@@ -15,6 +19,8 @@ const CLICK_TOLERANCE = 5;
 export function createScene(container, { onPickProject, onPickWorkPackage, onProgress }) {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // Neutral 色調映射保留色相與飽和度，狀態顏色仍能對照圖例。
+  renderer.toneMapping = THREE.NeutralToneMapping;
   container.append(renderer.domElement);
   const labelRenderer = new CSS2DRenderer();
   labelRenderer.domElement.className = 'label-layer';
@@ -35,12 +41,23 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   controls.screenSpacePanning = true;
   controls.maxDistance = 2000;
 
+  // 泛光：只有高亮處（恆星、星系核心、大氣邊緣）會向外發光。
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.5, 0.6));
+  composer.addPass(new OutputPass());
+
   const coreGeometry = new THREE.SphereGeometry(3.5, 32, 16);
-  const haloGeometry = new THREE.SphereGeometry(28, 32, 16);
-  const coreMaterial = new THREE.MeshStandardMaterial({ color: 0xc4b5fd, emissive: 0x7c3aed, emissiveIntensity: 0.8 });
-  const haloMaterial = new THREE.MeshBasicMaterial({
-    color: 0x7c3aed, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false,
-  });
+  // 星系核心是一顆恆星：亮度超過泛光門檻，自然形成光暈；外圈以柔光 sprite 表現星系盤的微光。
+  const coreMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xf5ecff).multiplyScalar(1.6) });
+  const glow = glowTexture();
+  const glowSprite = (color, opacity, scale) => {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glow, color, opacity, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    }));
+    sprite.scale.setScalar(scale);
+    return sprite;
+  };
   const looks = createPlanetLooks();
 
   const galaxies = new Map();
@@ -70,10 +87,11 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
     group.position.set(...galaxyCenter(project.id));
     const core = new THREE.Mesh(coreGeometry, coreMaterial);
     core.userData = { kind: 'project', id: project.id };
-    const halo = new THREE.Mesh(haloGeometry, haloMaterial);
+    const corona = glowSprite(0xc9b2ff, 0.55, 16);
+    const halo = glowSprite(0x7c3aed, 0.22, 90);
     const tag = label('', 'galaxy-label');
     tag.position.set(0, 6.5, 0);
-    group.add(core, halo, tag);
+    group.add(core, corona, halo, tag);
     scene.add(group);
     galaxies.set(project.id, { group, core, tag });
   }
@@ -149,6 +167,10 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   }
 
   function flyTo({ position, target }) {
+    // 先套用並清除拖曳留下的慣性；否則畫格慢時，飛行結束後殘留的阻尼會讓視角繼續漂移。
+    controls.enableDamping = false;
+    controls.update();
+    controls.enableDamping = true;
     flight = {
       start: performance.now(),
       fromPosition: camera.position.clone(), fromTarget: controls.target.clone(),
@@ -209,6 +231,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
     const { clientWidth: width, clientHeight: height } = container;
     if (!width || !height) return;
     renderer.setSize(width, height);
+    composer.setSize(width, height);
     labelRenderer.setSize(width, height);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
@@ -240,7 +263,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
     }
     fleet.update(time);
     updateLabels();
-    renderer.render(scene, camera);
+    composer.render();
     labelRenderer.render(scene, camera);
   });
 
