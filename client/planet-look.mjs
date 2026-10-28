@@ -5,6 +5,8 @@ const RADIUS = 1.6;
 const TEXTURE_WIDTH = 256;
 const TEXTURE_HEIGHT = 128;
 const ROUGHNESS = { gas: 0.85, rock: 1, ice: 0.45 };
+// 最近更新的星球自發光較強、大氣較亮，超過泛光門檻而微微發光。
+const GLOW = { normal: { emissive: 0.12, atmosphere: 1 }, bright: { emissive: 1, atmosphere: 3 } };
 
 const atmosphereVertex = `
 varying vec3 vNormal;
@@ -52,17 +54,17 @@ export function createPlanetLooks() {
     if (!map.has(key)) map.set(key, build());
     return map.get(key);
   };
-  const surfaceMaterial = (color, { kind, variant }) => cached(surfaces, `${color}:${kind}:${variant}`, () => {
+  const surfaceMaterial = (color, { kind, variant }, glow) => cached(surfaces, `${color}:${kind}:${variant}:${glow.emissive}`, () => {
     const map = textures.get(`${kind}:${variant}`);
     return new THREE.MeshStandardMaterial({
       color, map, roughness: ROUGHNESS[kind], metalness: 0,
       // 微弱自發光讓暗面仍看得出狀態顏色。
-      emissive: color, emissiveIntensity: 0.12,
+      emissive: color, emissiveIntensity: glow.emissive,
       ...(kind === 'gas' ? {} : { bumpMap: map, bumpScale: kind === 'rock' ? 2.5 : 1 }),
     });
   });
-  const atmosphereMaterial = color => cached(atmospheres, color, () => new THREE.ShaderMaterial({
-    uniforms: { glowColor: { value: new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.25) } },
+  const atmosphereMaterial = (color, glow) => cached(atmospheres, `${color}:${glow.atmosphere}`, () => new THREE.ShaderMaterial({
+    uniforms: { glowColor: { value: new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.25).multiplyScalar(glow.atmosphere) } },
     vertexShader: atmosphereVertex, fragmentShader: atmosphereFragment,
     side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   }));
@@ -107,7 +109,7 @@ export function createPlanetLooks() {
       root.add(plane);
       return { orbit, speed: moon.speed };
     });
-    return { root, surface, atmosphere, ring, clouds, orbits, traits, color: null };
+    return { root, surface, atmosphere, ring, clouds, orbits, traits, style: null };
   }
 
   // 自轉、雲層飄移與衛星公轉；只對看得到的星球呼叫。
@@ -117,11 +119,13 @@ export function createPlanetLooks() {
     for (const { orbit, speed } of look.orbits) orbit.rotation.y += speed * seconds;
   }
 
-  function restyle(look, color) {
-    if (look.color === color) return;
-    look.color = color;
-    look.surface.material = surfaceMaterial(color, look.traits);
-    look.atmosphere.material = atmosphereMaterial(color);
+  function restyle(look, color, bright = false) {
+    const style = `${color}:${bright}`;
+    if (look.style === style) return;
+    look.style = style;
+    const glow = bright ? GLOW.bright : GLOW.normal;
+    look.surface.material = surfaceMaterial(color, look.traits, glow);
+    look.atmosphere.material = atmosphereMaterial(color, glow);
     if (look.ring) look.ring.material = ringMaterial(color);
   }
 

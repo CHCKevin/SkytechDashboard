@@ -69,3 +69,11 @@ export function snapshotNotice(snapshot) {
 export function planetLabel(wp) {
   return `#${wp.id}`;
 }
+
+// 最近更新的前 N 個項目（依 updatedAt 新到舊，同時間依 ID）；沒有更新時間的不列入。
+export function recentlyUpdated(snapshot, limit = 30) {
+  const time = wp => Date.parse(wp.updatedAt);
+  const dated = snapshot.workPackages.filter(wp => wp.updatedAt && !Number.isNaN(time(wp)));
+  dated.sort((a, b) => time(b) - time(a) || Number(a.id) - Number(b.id));
+  return new Set(dated.slice(0, limit).map(wp => wp.id));
+}

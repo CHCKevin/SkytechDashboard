@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createDemoSource } from '../server/demo.mjs';
 import {
   MISSING, legendEntries, projectSummaries, visibleWorkPackages, detailFields,
-  participantsStatus, safeUrl, formatTime, snapshotNotice, planetLabel,
+  participantsStatus, safeUrl, formatTime, snapshotNotice, planetLabel, recentlyUpdated,
 } from '../client/view-model.mjs';
 
 const snapshot = await createDemoSource().getSnapshot({ refresh: false });
@@ -62,4 +62,13 @@ test('snapshot notices explain source errors and stale data', () => {
 });
 test('planet labels show only the work package ID', () => {
   assert.equal(planetLabel(byId('1002')), '#1002');
+});
+
+test('recentlyUpdated picks the newest items by updatedAt and skips items without one', () => {
+  const at = (id, updatedAt) => ({ id, updatedAt });
+  const items = [at('1', '2026-10-20T00:00:00Z'), at('2', null), at('3', '2026-10-25T00:00:00Z'),
+    at('4', '2026-10-22T00:00:00Z'), at('5', '2026-10-25T00:00:00Z')];
+  assert.deepEqual([...recentlyUpdated({ workPackages: items }, 3)], ['3', '5', '4']);
+  assert.deepEqual([...recentlyUpdated({ workPackages: items }, 10)], ['3', '5', '4', '1']);
+  assert.equal(recentlyUpdated(snapshot).size, snapshot.workPackages.filter(wp => wp.updatedAt).length);
 });

@@ -9,7 +9,7 @@ import { computeLayout, cameraPreset } from './layout-3d.mjs';
 import { createShipFleet } from './ships.mjs';
 import { createSky, glowTexture } from './sky.mjs';
 import { createPlanetLooks } from './planet-look.mjs';
-import { planetLabel } from './view-model.mjs';
+import { planetLabel, recentlyUpdated } from './view-model.mjs';
 
 const BATCH_SIZE = 200;
 const LABEL_DISTANCE = 140;
@@ -70,6 +70,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   let crew = null; // { id, people }
   let flight = null;
   let layout = computeLayout({ projects: [], workPackages: [] });
+  let recent = new Set();
 
   function label(text, className) {
     const element = document.createElement('div');
@@ -113,7 +114,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
 
   function updatePlanet(planet, wp) {
     planet.wp = wp;
-    looks.restyle(planet, wp.status.color);
+    looks.restyle(planet, wp.status.color, recent.has(wp.id));
     planet.root.position.set(...layout.planets.get(wp.id));
     planet.tag.element.textContent = planetLabel(wp);
     planet.root.visible = view.mode === 'universe' || (view.mode === 'galaxy' && wp.projectId === view.projectId);
@@ -128,6 +129,7 @@ export function createScene(container, { onPickProject, onPickWorkPackage, onPro
   function setData(snapshot) {
     const firstData = layout.galaxies.size === 0;
     layout = computeLayout(snapshot);
+    recent = recentlyUpdated(snapshot);
     // 初始視角是在沒有資料時算的；第一次拿到資料後依實際範圍重新取景。
     if (firstData && layout.galaxies.size > 0) flyTo(cameraPreset(view, layout));
     const counts = new Map();

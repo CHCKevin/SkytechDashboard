@@ -1,6 +1,6 @@
 # Dashboard 工作交接
 
-最後更新：2026-10-27（Asia/Taipei）
+最後更新：2026-10-28（Asia/Taipei）
 目前階段：第一～三階段已完成；第四階段（OpenProject adapter）離線部分（Task 1–6）已完成並提交於 `feature/openproject-adapter`（基於 `feature/3d-frontend`；所有功能分支皆未合併至 master）。下一步為 Task 7 真實來源驗證，需要使用者自建 API token 填入 `config/local.json`。
 
 ## 最新接續摘要
@@ -215,3 +215,11 @@
   - `looks.animate` 統一處理自轉、雲層飄移與衛星公轉。362 顆中有 125 顆有雲層，衛星共 272 顆。
 - 修正：星球標籤蓋到側邊面板。原因是 CSS2DRenderer 替標籤設 z-index；`.scene { z-index: 0 }` 讓場景自成疊放層級。
 - 驗證：`npm test` 81 個通過；34 項瀏覽器檢查在 SwiftShader 與 GPU 皆通過。檢查腳本的旋轉、縮放量測改用不在原點的「太空站維運」標籤，因為新佈局把第一個星系放在旋轉中心。即時模式 Nexda 1.0（244 顆）截圖確認不重疊。
+
+## 2026-10-28 近期變動星球加亮（`feature/visual-realism`）
+- 使用者要求：近期有變動的 30 顆星球亮度提高。
+- `recentlyUpdated(snapshot, 30)`（`client/view-model.mjs`）：依 `updatedAt` 新到舊取前 30 個，同時間依 ID；沒有 `updatedAt` 的不列入。範圍是整個快照，不分專案。
+- `looks.restyle(look, color, bright)`：加亮的星球自發光 1.0（一般 0.12）、大氣亮度 ×3，超過泛光門檻而發光；材質依「顏色＋亮度」快取。
+- 每次 `setData` 重新計算，資料更新後加亮名單會跟著換。
+- 使用者指定之後的 commit message 格式：`[TYPE]票號: 標題`，內文分 What／How／Change（已記入記憶）。
+- 驗證：`npm test` 82 個通過；34 項瀏覽器檢查在 SwiftShader 與 GPU 皆通過；即時模式 Nexda 1.0 截圖確認加亮星球明顯可辨。
