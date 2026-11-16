@@ -10,6 +10,7 @@ vi.mock('./lib/api.js', async () => {
     getMe: vi.fn(), getConfig: vi.fn(), listQuests: vi.fn(), listEntries: vi.fn(), createEntry: vi.fn(),
     updateEntry: vi.fn(), deleteEntry: vi.fn(), listActivities: vi.fn(), searchWorkPackages: vi.fn(),
     pinQuest: vi.fn(), unpinQuest: vi.fn(),
+    getHall: vi.fn(), searchUsers: vi.fn(), addHallMember: vi.fn(), removeHallMember: vi.fn(),
   };
 });
 vi.mock('./lib/dates.js', async () => ({ ...(await vi.importActual('./lib/dates.js')), todayLocal: () => '2026-11-16' }));
@@ -25,6 +26,7 @@ beforeEach(() => {
   api.listQuests.mockResolvedValue([quest]);
   api.listEntries.mockResolvedValue([]);
   api.listActivities.mockResolvedValue([{ id: 3, name: 'Development', default: false }]);
+  api.getHall.mockResolvedValue({ date: '2026-11-16', members: [] });
 });
 
 test('loads user, quests and the day', async () => {
@@ -140,4 +142,30 @@ test('one failing startup request does not discard the others', async () => {
   render(App);
   expect(await screen.findByText('冒險者：Ted')).toBeTruthy();
   expect(await screen.findByText(/無法連線到 OpenProject/)).toBeTruthy();
+});
+test('the quest tab is selected on load and the hall is not read yet', async () => {
+  render(App);
+  expect(await screen.findByText('前端登入頁改版')).toBeTruthy();
+  expect(screen.getByRole('tab', { name: '任務欄' }).getAttribute('aria-selected')).toBe('true');
+  expect(screen.getByRole('tab', { name: '公會大廳' }).getAttribute('aria-selected')).toBe('false');
+  expect(api.getHall).not.toHaveBeenCalled();
+});
+test('switching to the hall tab reads the hall and hides the quest board', async () => {
+  render(App);
+  await screen.findByText('前端登入頁改版');
+  await userEvent.click(screen.getByRole('tab', { name: '公會大廳' }));
+  expect(api.getHall).toHaveBeenCalledWith('2026-11-16');
+  expect(screen.getByRole('tab', { name: '公會大廳' }).getAttribute('aria-selected')).toBe('true');
+  expect(screen.queryByText('前端登入頁改版')).toBeNull();
+  expect(screen.getByText('冒險者：Ted')).toBeTruthy();
+});
+test('both tabs share the selected day', async () => {
+  render(App);
+  await screen.findByText('前端登入頁改版');
+  await userEvent.click(screen.getByRole('tab', { name: '公會大廳' }));
+  await userEvent.click(screen.getByRole('button', { name: '前一天' }));
+  expect(api.getHall).toHaveBeenLastCalledWith('2026-11-15');
+  await userEvent.click(screen.getByRole('tab', { name: '任務欄' }));
+  expect(await screen.findByText('前端登入頁改版')).toBeTruthy();
+  expect(api.listEntries).toHaveBeenLastCalledWith('2026-11-15');
 });
