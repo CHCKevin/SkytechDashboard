@@ -27,7 +27,7 @@
     <p class="banner" role="alert">{banner} <button class="link" onclick={() => (banner = '')}>關閉</button></p>
   {/if}
   {#if tab === 'hall'}
-    <HallTab {date} />
+    <HallTab {date} onbanner={message => (banner = message)} />
   {:else}
     <QuestTab {date} ondatechange={day => (date = day)} onbanner={message => (banner = message)} />
   {/if}

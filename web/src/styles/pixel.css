@@ -166,3 +166,4 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .member-head p { margin: 0; }
 .suggestions button:disabled { opacity: 0.5; cursor: not-allowed; }
 .suggestions button[aria-pressed='true'] { background: var(--brass); }
+.hall-stage { min-width: 0; }
