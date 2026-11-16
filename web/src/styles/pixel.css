@@ -156,3 +156,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .zone-desk { gap: 4px; }
   .zone-sofa { padding: 4px; }
 }
+
+/* 大廳面板 */
+.roster { list-style: none; margin: 0; padding: 0; }
+.roster-row { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center; width: 100%; padding: 4px 2px; background: none; border: none; border-bottom: 2px dashed var(--wood-light); text-align: left; cursor: pointer; }
+.roster-row:hover, .roster-row:focus-visible { background: var(--paper); }
+.roster-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-head { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+.member-head p { margin: 0; }
+.suggestions button:disabled { opacity: 0.5; cursor: not-allowed; }
+.suggestions button[aria-pressed='true'] { background: var(--brass); }
