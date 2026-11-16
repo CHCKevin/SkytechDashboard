@@ -34,3 +34,13 @@ test('empty day shows a hint and zero total', () => {
   expect(screen.getByText('這天還沒有接任務')).toBeTruthy();
   expect(screen.getByText('0 / 8h')).toBeTruthy();
 });
+test('loading shows a notice instead of the empty hint', () => {
+  render(TodayLog, { props: { entries: [], target: 8, loading: true, onedit: vi.fn(), ondelete: vi.fn() } });
+  expect(screen.getByText('讀取中…')).toBeTruthy();
+  expect(screen.queryByText('這天還沒有接任務')).toBeNull();
+});
+test('a load error is shown as an alert instead of the empty hint', () => {
+  render(TodayLog, { props: { entries: [], target: 8, loadError: '無法連線', onedit: vi.fn(), ondelete: vi.fn() } });
+  expect(screen.getByRole('alert').textContent).toBe('無法連線');
+  expect(screen.queryByText('這天還沒有接任務')).toBeNull();
+});

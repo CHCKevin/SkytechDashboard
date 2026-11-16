@@ -24,7 +24,13 @@ export function createTimeTrackingSource({ client }) {
 
     async createEntry(input) {
       await getWorkPackage(input.workPackageId);
-      return toEntry(await client.send('POST', '/api/v3/time_entries', toPayload(input)));
+      const hal = await client.send('POST', '/api/v3/time_entries', toPayload(input));
+      // 請求已成功送達，之後才解讀失敗：結果其實已寫入，不可讓前端當成確定失敗而重送。
+      try {
+        return toEntry(hal);
+      } catch {
+        throw new SourceError('write_unconfirmed');
+      }
     },
 
     async updateEntry(id, patch) {

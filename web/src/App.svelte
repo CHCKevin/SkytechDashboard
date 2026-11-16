@@ -10,13 +10,15 @@
   import TopBar from './components/TopBar.svelte';
 
   // 這些錯誤代表請求可能已送達 OpenProject 但回應遺失或無法解讀，不能直接重送。
-  const UNCERTAIN = new Set(['network', 'timeout', 'write_unconfirmed']);
+  const UNCERTAIN = new Set(['network', 'timeout', 'upstream_error', 'write_unconfirmed']);
 
   let date = $state(todayLocal());
   let me = $state(null);
   let target = $state(8);
   let quests = $state([]);
   let entries = $state([]);
+  let loading = $state(false);
+  let loadError = $state('');
   let banner = $state('');
   let dialog = $state(null);
   let pinning = $state(false);
@@ -40,11 +42,22 @@
   // 只採用最後一次讀取的結果，快速切換日期時舊回應不會蓋掉新日期。
   async function loadEntries(day) {
     const mine = ++latestLoad;
+    // 先清空：載入中或失敗時不能把前一天的紀錄當成這一天顯示（[改]/[刪] 會動到錯的資料）。
+    entries = [];
+    loading = true;
+    loadError = '';
     try {
       const list = await api.listEntries(day);
-      if (mine === latestLoad) entries = list;
+      if (mine === latestLoad) {
+        entries = list;
+        loading = false;
+      }
     } catch (error) {
-      if (mine === latestLoad) banner = error.message;
+      if (mine === latestLoad) {
+        loading = false;
+        loadError = error.message;
+        banner = error.message;
+      }
     }
   }
 
@@ -85,6 +98,8 @@
       await loadEntries(date);
     } catch (error) {
       banner = error.message;
+      // 刪除可能其實已成功（回應遺失），重讀清單讓該列正確消失。
+      await loadEntries(date);
     }
   }
 
@@ -115,7 +130,7 @@
       onpin={() => (pinning = true)}>
       <SpecialQuest onselect={workPackage => openCreate(workPackage)} />
     </QuestBoard>
-    <TodayLog {entries} {target} onedit={openEdit} ondelete={removeEntry} />
+    <TodayLog {entries} {target} {loading} {loadError} onedit={openEdit} ondelete={removeEntry} />
   </main>
 </div>
 

@@ -93,3 +93,45 @@ test('a failed initial load shows a banner', async () => {
   render(App);
   expect(await screen.findByText(/OpenProject 驗證失敗/)).toBeTruthy();
 });
+test('switching day drops the previous day rows while loading', async () => {
+  api.listEntries.mockResolvedValueOnce([entry]);
+  render(App);
+  await screen.findByRole('button', { name: /^刪 / });
+  api.listEntries.mockReturnValueOnce(new Promise(() => {}));
+  await userEvent.click(screen.getByRole('button', { name: '前一天' }));
+  expect(await screen.findByText('讀取中…')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /^刪 / })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^改 #/ })).toBeNull();
+});
+test('a failed day load clears old rows and shows the error', async () => {
+  api.listEntries.mockResolvedValueOnce([entry]);
+  render(App);
+  await screen.findByRole('button', { name: /^刪 / });
+  api.listEntries.mockRejectedValueOnce(new api.ApiError(502, 'timeout', '連線 OpenProject 逾時'));
+  await userEvent.click(screen.getByRole('button', { name: '前一天' }));
+  expect((await screen.findAllByText(/連線 OpenProject 逾時/)).length).toBeGreaterThan(1);
+  expect(screen.queryByRole('button', { name: /^刪 / })).toBeNull();
+  expect(screen.queryByText('這天還沒有接任務')).toBeNull();
+});
+test('an upstream_error create reloads the day and warns without a second create', async () => {
+  api.createEntry.mockRejectedValue(new api.ApiError(502, 'upstream_error', 'OpenProject 伺服器錯誤'));
+  render(App);
+  await userEvent.click(await screen.findByText('前端登入頁改版'));
+  const dialog = await screen.findByRole('dialog');
+  await userEvent.type(within(dialog).getByRole('textbox', { name: '時數' }), '1');
+  const before = api.listEntries.mock.calls.length;
+  await userEvent.click(within(dialog).getByRole('button', { name: '接下任務！' }));
+  expect((await within(dialog).findByRole('alert')).textContent).toMatch(/結果不確定/);
+  expect(api.listEntries.mock.calls.length).toBe(before + 1);
+  expect(api.createEntry).toHaveBeenCalledTimes(1);
+});
+test('a failed delete reloads the day so a delete that did succeed disappears', async () => {
+  api.listEntries.mockResolvedValueOnce([entry]);
+  api.deleteEntry.mockRejectedValue(new api.ApiError(0, 'network', '無法連線到本機伺服器'));
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  render(App);
+  await userEvent.click(await screen.findByRole('button', { name: /^刪 / }));
+  expect(await screen.findByText(/無法連線到本機伺服器/)).toBeTruthy();
+  await vi.waitFor(() => expect(screen.queryByRole('button', { name: /^刪 / })).toBeNull());
+  confirm.mockRestore();
+});

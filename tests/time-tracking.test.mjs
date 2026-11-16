@@ -59,6 +59,12 @@ test('createEntry checks the work package first, then posts the OpenProject payl
     });
   });
 });
+test('createEntry reports an unreadable 2xx response as write_unconfirmed', async () => {
+  await withSource((url, req) => (req.method === 'GET' ? { body: wpHal(202) } : { status: 201, body: { id: 1, hours: 'garbage' } }), async source => {
+    await assert.rejects(source.createEntry({ workPackageId: 202, date: '2026-11-16', hours: 1, activityId: null, comment: '' }),
+      error => error.code === 'write_unconfirmed');
+  });
+});
 test('createEntry with no activity sends a null activity link', async () => {
   await withSource((url, req) => (req.method === 'GET' ? { body: wpHal(202) } : { status: 201, body: entryHal() }), async (source, fake) => {
     await source.createEntry({ workPackageId: 202, date: '2026-11-16', hours: 1, activityId: null, comment: '' });
