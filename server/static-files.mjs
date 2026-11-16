@@ -1,50 +1,34 @@
-import { access } from 'node:fs/promises';
-import { extname, resolve } from 'node:path';
+import { readdir } from 'node:fs/promises';
+import { extname, join, relative, sep } from 'node:path';
 
 const types = {
   '.html': 'text/html; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
 };
 
-// 公開路徑 → 專案內檔案；只有列在這裡的檔案會被提供。
-const entries = {
-  '/': 'client/index.html',
-  '/main.mjs': 'client/main.mjs',
-  '/api.mjs': 'client/api.mjs',
-  '/store.mjs': 'client/store.mjs',
-  '/view-model.mjs': 'client/view-model.mjs',
-  '/layout-3d.mjs': 'client/layout-3d.mjs',
-  '/scene.mjs': 'client/scene.mjs',
-  '/ships.mjs': 'client/ships.mjs',
-  '/procedural.mjs': 'client/procedural.mjs',
-  '/sky.mjs': 'client/sky.mjs',
-  '/planet-look.mjs': 'client/planet-look.mjs',
-  '/styles.css': 'client/styles.css',
-  '/favicon.svg': 'client/favicon.svg',
-  '/shared/layout.mjs': 'shared/layout.mjs',
-  '/vendor/three.module.js': 'node_modules/three/build/three.module.js',
-  '/vendor/OrbitControls.js': 'node_modules/three/examples/jsm/controls/OrbitControls.js',
-  '/vendor/CSS2DRenderer.js': 'node_modules/three/examples/jsm/renderers/CSS2DRenderer.js',
-  ...Object.fromEntries(['EffectComposer', 'RenderPass', 'UnrealBloomPass', 'OutputPass', 'Pass', 'ShaderPass', 'MaskPass']
-    .map(name => [`/vendor/postprocessing/${name}.js`, `node_modules/three/examples/jsm/postprocessing/${name}.js`])),
-  ...Object.fromEntries(['CopyShader', 'LuminosityHighPassShader', 'OutputShader']
-    .map(name => [`/vendor/shaders/${name}.js`, `node_modules/three/examples/jsm/shaders/${name}.js`])),
-};
-
-export function createStaticFiles(root) {
-  return Object.fromEntries(Object.entries(entries).map(([url, file]) =>
-    [url, { path: resolve(root, file), type: types[extname(file)] }]));
-}
-
-export async function assertStaticFiles(staticFiles) {
-  for (const [url, file] of Object.entries(staticFiles)) {
-    try {
-      await access(file.path);
-    } catch {
-      throw new Error(`Missing static file for ${url}; run npm install`);
-    }
+// 啟動時掃描 Vite 產物建立白名單；只有已知類型的檔案會被提供，請求路徑只做完整比對。
+export async function scanStaticFiles(distDir) {
+  let names;
+  try {
+    names = await readdir(distDir, { recursive: true, withFileTypes: true });
+  } catch {
+    throw new Error(`找不到前端產物 ${distDir}，請先執行 npm run build`);
   }
+  const files = {};
+  for (const entry of names) {
+    if (!entry.isFile()) continue;
+    const type = types[extname(entry.name).toLowerCase()];
+    if (!type) continue;
+    const path = join(entry.parentPath, entry.name);
+    const url = `/${relative(distDir, path).split(sep).map(encodeURIComponent).join('/')}`;
+    files[url] = { path, type };
+  }
+  if (!files['/index.html']) throw new Error('前端產物缺少 index.html，請先執行 npm run build');
+  files['/'] = files['/index.html'];
+  return files;
 }

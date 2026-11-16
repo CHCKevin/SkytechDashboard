@@ -2,49 +2,47 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDemoSource } from '../server/demo.mjs';
 
-const fixedNow = () => new Date('2026-10-26T12:00:00.000Z');
+const isCode = code => error => error.code === code;
 
-test('snapshot is complete, labeled demo, and covers the required cases', async () => {
-  const s = await createDemoSource({ now: fixedNow }).getSnapshot({ refresh: false });
-  assert.equal(s.mode, 'demo');
-  assert.equal(s.complete, true);
-  assert.equal(s.stale, false);
-  assert.equal(s.error, null);
-  assert.equal(s.lastSuccessAt, '2026-10-26T12:00:00.000Z');
-  assert.deepEqual(s.progress, { loaded: s.workPackages.length, total: s.workPackages.length });
-  const used = new Set(s.workPackages.map(wp => wp.projectId));
-  assert.ok(s.projects.some(p => !used.has(p.id)), 'has an empty project');
-  assert.ok(s.workPackages.some(wp => wp.assignee === null), 'has an unassigned item');
-  assert.ok(s.workPackages.some(wp => wp.updatedAt === null), 'has an item without updatedAt');
-  assert.ok(s.workPackages.every(wp => wp.url === null), 'demo never fabricates source links');
-  for (const wp of s.workPackages) {
-    assert.ok(s.statuses.some(st => st.id === wp.status.id && st.name === wp.status.name &&
-      st.color === wp.status.color), `status of ${wp.id} is in the legend`);
-  }
-  assert.ok(s.statuses.every(st => /^#[0-9a-f]{6}$/.test(st.color)));
-  assert.ok(s.statuses.some(st => st.id === null && st.name === '未知狀態' && st.color === '#94a3b8'));
+test('demo source has a user, work packages and activities', async () => {
+  const source = createDemoSource();
+  assert.deepEqual(await source.getMe(), { id: 1, name: '示例冒險者' });
+  assert.equal((await source.getWorkPackage(1234)).subject, '前端登入頁改版');
+  await assert.rejects(source.getWorkPackage(999), isCode('not_found'));
+  const activities = await source.listActivities(1234);
+  assert.ok(activities.some(activity => activity.default));
+  await assert.rejects(source.listActivities(999), isCode('not_found'));
 });
-test('participants cover multi-role, same-name, and incomplete history', async () => {
-  const source = createDemoSource({ now: fixedNow });
-  const multiRole = await source.getParticipants('1002', { refresh: false });
-  assert.equal(multiRole.people.length, 1);
-  assert.equal(multiRole.complete, true);
-  assert.equal(multiRole.error, null);
-  const sameName = await source.getParticipants('1003', { refresh: false });
-  assert.deepEqual(sameName.people.map(p => [p.id, p.name]), [['2', 'Alex'], ['1', 'Alex']]);
-  assert.equal(sameName.workPackageUpdatedAt, null);
-  const partial = await source.getParticipants('1004', { refresh: false });
-  assert.equal(partial.complete, false);
-  assert.equal(partial.error.code, 'activities_incomplete');
-  assert.ok(partial.people.some(p => p.id === null));
-  assert.equal(await source.getParticipants('9999', { refresh: false }), null);
+test('demo search matches id or subject and puts exact id first', async () => {
+  const source = createDemoSource();
+  assert.equal((await source.searchWorkPackages('2051'))[0].id, 2051);
+  assert.ok((await source.searchWorkPackages('登入')).every(wp => wp.subject.includes('登入')));
+  assert.deepEqual(await source.searchWorkPackages(''), []);
+  assert.ok((await source.searchWorkPackages('2')).length <= 10);
 });
-test('returned data are copies that callers cannot corrupt', async () => {
-  const source = createDemoSource({ now: fixedNow });
-  const first = await source.getSnapshot({ refresh: false });
-  first.projects[0].name = 'changed';
-  first.workPackages[0].status.name = 'changed';
-  const second = await source.getSnapshot({ refresh: false });
-  assert.notEqual(second.projects[0].name, 'changed');
-  assert.notEqual(second.workPackages[0].status.name, 'changed');
+test('demo entries support create, list by day, update and delete', async () => {
+  const source = createDemoSource();
+  const before = await source.listEntries('2030-01-01');
+  assert.deepEqual(before, []);
+  const created = await source.createEntry({ workPackageId: 1234, date: '2030-01-01', hours: 2.5, activityId: 3, comment: 'x' });
+  assert.deepEqual(created, { id: created.id, workPackageId: 1234, workPackageSubject: '前端登入頁改版', date: '2030-01-01',
+    hours: 2.5, activityId: 3, activityName: 'Development', comment: 'x' });
+  assert.deepEqual(await source.listEntries('2030-01-01'), [created]);
+  const updated = await source.updateEntry(created.id, { hours: 1, activityId: null });
+  assert.equal(updated.hours, 1);
+  assert.equal(updated.activityName, null);
+  await source.deleteEntry(created.id);
+  assert.deepEqual(await source.listEntries('2030-01-01'), []);
+  await assert.rejects(source.deleteEntry(created.id), isCode('not_found'));
+  await assert.rejects(source.updateEntry(created.id, { hours: 1 }), isCode('not_found'));
+});
+test('demo rejects unknown work packages and activities', async () => {
+  const source = createDemoSource();
+  await assert.rejects(source.createEntry({ workPackageId: 999, date: '2030-01-01', hours: 1, activityId: null, comment: '' }), isCode('not_found'));
+  await assert.rejects(source.createEntry({ workPackageId: 1234, date: '2030-01-01', hours: 1, activityId: 77, comment: '' }),
+    error => error.code === 'validation' && /Activity/.test(error.message));
+});
+test('demo starts with sample entries for today', async () => {
+  const source = createDemoSource({ today: '2026-11-16' });
+  assert.equal((await source.listEntries('2026-11-16')).length, 2);
 });

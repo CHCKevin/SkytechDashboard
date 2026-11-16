@@ -1,73 +1,84 @@
-import { colorForStatus } from '../shared/layout.mjs';
-import { collectParticipants } from '../shared/participants.mjs';
+import { SourceError } from './openproject/errors.mjs';
 
-// 合成示例資料，不代表任何真實 OpenProject 內容。
-// 涵蓋：空專案、未指派、同名不同 ID、一人多角色、未知狀態、無 updatedAt、歷史不完整、HTML 字串描述。
-const people = {
-  alexA: { id: '1', name: 'Alex' },
-  alexB: { id: '2', name: 'Alex' },
-  mei: { id: '3', name: '林小美' },
-  wen: { id: '4', name: '陳大文' },
-  deleted: { id: null, name: '已刪除使用者' },
-};
+const WORK_PACKAGES = [
+  [1234, '前端登入頁改版', '示例專案'], [2051, '週會與進度回報', '示例專案'], [1877, '客戶 A 維運支援', '維運'],
+  [1990, 'Code review', '示例專案'], [2310, '匯出報表效能問題', '維運'], [2318, 'SSO 設定調整', '維運'],
+  [2333, '新人教育訓練', '行政'], [2205, '登入頁 E2E 測試', '示例專案'],
+].map(([id, subject, project]) => ({ id, subject, project }));
 
-const statuses = [
-  { id: '1', name: '新建', color: '#1E90FF' },
-  { id: '7', name: '進行中', color: null },
-  { id: '12', name: '已關閉', color: '#6B7280' },
-  { id: null, name: '未知狀態', color: null },
-].map(status => ({ ...status, color: colorForStatus(status.id, status.color) }));
-const statusById = new Map(statuses.map(status => [status.id, status]));
-
-const projects = [
-  { id: '101', name: '星圖平台' },
-  { id: '102', name: '太空站維運' },
-  { id: '103', name: '空專案' },
+const ACTIVITIES = [
+  { id: 1, name: 'Management', default: true }, { id: 3, name: 'Development', default: false },
+  { id: 4, name: 'Testing', default: false }, { id: 5, name: 'Support', default: false }, { id: 6, name: 'Other', default: false },
 ];
 
-const workPackages = [
-  { id: '1001', projectId: '101', subject: '建立登入頁', author: people.alexA, assignee: people.mei,
-    statusId: '7', description: '示例：一般工作項目', updatedAt: '2026-10-20T08:00:00.000Z' },
-  { id: '1002', projectId: '101', subject: '整合 API', author: people.mei, assignee: people.mei,
-    statusId: '1', description: '<b>示例：此字串不應被當成 HTML</b>', updatedAt: '2026-10-22T03:30:00.000Z' },
-  { id: '1003', projectId: '101', subject: '撰寫文件', author: people.alexB, assignee: null,
-    statusId: '12', description: null, updatedAt: null },
-  { id: '1004', projectId: '102', subject: '機房巡檢', author: people.wen, assignee: people.alexA,
-    statusId: null, description: '示例：狀態不明且活動歷史不完整', updatedAt: '2026-10-25T10:15:00.000Z' },
-];
+function localToday() {
+  const now = new Date();
+  const pad = value => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
 
-const activities = {
-  '1001': { authors: [people.mei, people.alexA, people.wen], complete: true },
-  '1002': { authors: [people.mei], complete: true },
-  '1003': { authors: [people.alexA, people.alexB], complete: true },
-  '1004': { authors: [people.deleted], complete: false },
-};
+// 記憶體內的假 OpenProject，介面與 time-tracking.mjs 相同；重啟即重置。
+export function createDemoSource({ today = localToday() } = {}) {
+  const entries = new Map();
+  let nextId = 1;
 
-export function createDemoSource({ now = () => new Date() } = {}) {
+  function workPackage(id) {
+    const wp = WORK_PACKAGES.find(item => item.id === id);
+    if (!wp) throw new SourceError('not_found');
+    return wp;
+  }
+
+  function activity(id) {
+    if (id === null) return null;
+    const found = ACTIVITIES.find(item => item.id === id);
+    if (!found) throw new SourceError('validation', 'Activity is not set to one of the allowed values.');
+    return found;
+  }
+
+  function save(id, input) {
+    const wp = workPackage(input.workPackageId);
+    const act = activity(input.activityId);
+    const entry = {
+      id, workPackageId: wp.id, workPackageSubject: wp.subject, date: input.date, hours: input.hours,
+      activityId: act?.id ?? null, activityName: act?.name ?? null, comment: input.comment,
+    };
+    entries.set(id, entry);
+    return { ...entry };
+  }
+
+  function existing(id) {
+    const entry = entries.get(id);
+    if (!entry) throw new SourceError('not_found');
+    return entry;
+  }
+
+  save(nextId++, { workPackageId: 1234, date: today, hours: 2.5, activityId: 3, comment: '調整表單驗證' });
+  save(nextId++, { workPackageId: 2051, date: today, hours: 1, activityId: 1, comment: '' });
+
   return {
-    async getSnapshot() {
-      const items = workPackages.map(({ statusId, ...wp }) =>
-        ({ ...wp, status: statusById.get(statusId), url: null }));
-      return structuredClone({
-        mode: 'demo', revision: 'demo-1',
-        projects, workPackages: items, statuses,
-        complete: true, stale: false, lastSuccessAt: now().toISOString(),
-        progress: { loaded: items.length, total: items.length },
-        error: null,
-      });
+    async getMe() { return { id: 1, name: '示例冒險者' }; },
+    async listEntries(date) {
+      return [...entries.values()].filter(entry => entry.date === date).sort((a, b) => a.id - b.id).map(entry => ({ ...entry }));
     },
-    async getParticipants(id) {
-      const wp = workPackages.find(item => item.id === id);
-      if (!wp) return null;
-      const history = activities[id];
-      return structuredClone({
-        workPackageId: id,
-        workPackageUpdatedAt: wp.updatedAt,
-        people: collectParticipants(wp.author, wp.assignee, history.authors),
-        complete: history.complete,
-        error: history.complete ? null
-          : { code: 'activities_incomplete', message: '示例：活動歷史僅部分可讀，參與者名單可能不完整' },
-      });
+    async createEntry(input) { return save(nextId++, input); },
+    async updateEntry(id, patch) {
+      const current = existing(id);
+      return save(id, { ...current, ...patch });
+    },
+    async deleteEntry(id) {
+      existing(id);
+      entries.delete(id);
+    },
+    async getWorkPackage(id) { return { ...workPackage(id) }; },
+    async searchWorkPackages(term) {
+      if (!term) return [];
+      const matches = WORK_PACKAGES.filter(wp => String(wp.id).includes(term) || wp.subject.includes(term));
+      matches.sort((a, b) => (String(b.id) === term) - (String(a.id) === term));
+      return matches.slice(0, 10).map(wp => ({ ...wp }));
+    },
+    async listActivities(workPackageId) {
+      workPackage(workPackageId);
+      return ACTIVITIES.map(item => ({ ...item }));
     },
   };
 }

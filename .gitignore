@@ -5,3 +5,5 @@ config/local.json
 !.env.example
 .superpowers/
 node_modules/
+data/
+web/dist/

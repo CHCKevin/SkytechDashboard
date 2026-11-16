@@ -12,7 +12,16 @@ export function parseConfig(input) {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error('port must be an integer from 1 to 65535');
   }
-  const config = { mode: input.mode, host: '127.0.0.1', port, baseUrl: null, apiToken: null };
+  const dailyTargetHours = input.dailyTargetHours ?? 8;
+  if (typeof dailyTargetHours !== 'number' || !(dailyTargetHours > 0 && dailyTargetHours <= 24)) {
+    throw new Error('dailyTargetHours must be a number greater than 0 and at most 24');
+  }
+  const dataDir = nonEmpty(input.dataDir ?? 'data', 'dataDir');
+  const staticDir = nonEmpty(input.staticDir ?? 'web/dist', 'staticDir');
+  const config = {
+    mode: input.mode, host: '127.0.0.1', port, baseUrl: null, apiToken: null,
+    dailyTargetHours, dataDir, staticDir,
+  };
   if (input.mode === 'demo') return Object.freeze(config);
   let url;
   try { url = new URL(input.baseUrl); } catch { throw new Error('baseUrl must be a valid URL'); }
@@ -34,4 +43,9 @@ export async function loadConfig(path) {
   try { input = JSON.parse(raw); }
   catch { throw new Error('Config file must contain valid JSON'); }
   return parseConfig(input);
+}
+
+function nonEmpty(value, name) {
+  if (typeof value !== 'string' || !value.trim()) throw new Error(`${name} must be a non-empty string`);
+  return value;
 }

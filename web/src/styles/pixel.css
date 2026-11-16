@@ -1,0 +1,111 @@
+@font-face {
+  font-family: 'Cubic11';
+  src: url('../assets/fonts/Cubic_11.woff2') format('woff2');
+  font-display: swap;
+}
+
+:root {
+  --ink: #2b1a0e;
+  --wall: #3b2414;
+  --wall-dark: #24150b;
+  --wood: #6b4226;
+  --wood-dark: #5e3a21;
+  --wood-light: #8a5a35;
+  --parchment: #f1e2b8;
+  --parchment-dark: #e8d29a;
+  --paper: #fff8e0;
+  --brass: #c9a25a;
+  --seal: #c0392b;
+  --leaf: #4a8a3a;
+  --font: 'Cubic11', 'Microsoft JhengHei', monospace;
+  /* 點陣字只有在設計格線的整數倍才銳利；--fs-1 依 Step 1 讀到的建議字級設定，其他字級只能是它的整數倍。 */
+  --fs-1: 12px;
+  --fs-2: 24px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--wall);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-1);
+  line-height: 1.5;
+  -webkit-font-smoothing: none;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+
+.app { max-width: 1200px; margin: 0 auto; padding: 16px; border: 6px solid var(--wall-dark); min-height: 100vh; }
+
+/* 頂部列 */
+.topbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; color: var(--parchment); text-shadow: 2px 2px 0 #000; margin-bottom: 16px; }
+.guild { font-size: var(--fs-2); margin: 0; font-weight: normal; }
+.date-nav { display: flex; gap: 8px; align-items: center; font-size: var(--fs-2); white-space: nowrap; flex-wrap: wrap; }
+
+/* 按鈕 */
+.btn { background: var(--brass); color: var(--ink); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 2px 12px; cursor: pointer; text-shadow: none; white-space: nowrap; }
+.btn:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: none; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: var(--seal); color: var(--parchment); }
+.link { background: none; border: none; padding: 0 2px; cursor: pointer; text-decoration: underline; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px dashed var(--seal); outline-offset: 2px; }
+
+/* 版面 */
+.layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+
+/* 木板 */
+.board { background: repeating-linear-gradient(0deg, var(--wood) 0 10px, var(--wood-dark) 10px 12px); border: 6px solid var(--ink); box-shadow: inset 0 0 0 3px var(--wood-light); padding: 16px; }
+.board-title { color: var(--parchment); text-shadow: 2px 2px 0 var(--ink); font-size: var(--fs-2); font-weight: normal; margin: 0 0 12px; }
+
+/* 任務單 */
+.notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.note { position: relative; background: var(--parchment); border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); min-height: 96px; }
+.note::before { content: ''; position: absolute; top: -8px; left: calc(50% - 5px); width: 10px; height: 10px; background: var(--seal); border: 2px solid var(--ink); }
+.note-main { display: flex; flex-direction: column; gap: 2px; width: 100%; height: 100%; padding: 12px 10px 8px; background: none; border: none; text-align: left; cursor: pointer; }
+.note-main:hover { background: var(--paper); }
+.note-id { font-size: var(--fs-1); opacity: 0.7; }
+.note-meta { font-size: var(--fs-1); opacity: 0.8; margin-top: auto; }
+.note-x { position: absolute; top: 2px; right: 4px; background: none; border: none; cursor: pointer; opacity: 0.5; font-size: var(--fs-1); }
+.note-x:hover { opacity: 1; color: var(--seal); }
+.note-add { background: transparent; border: 3px dashed var(--parchment); color: var(--parchment); box-shadow: none; cursor: pointer; text-shadow: 2px 2px 0 var(--ink); }
+.note-add::before { display: none; }
+
+/* 羊皮紙面板 */
+.parchment { background: var(--parchment); border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 12px; }
+.special { background: var(--parchment-dark); }
+.special h3 { margin: 0 0 6px; font-size: var(--fs-1); font-weight: normal; }
+
+/* 搜尋 */
+.search-input { width: 100%; background: var(--paper); border: 3px solid var(--ink); padding: 4px 8px; }
+.suggestions { list-style: none; margin: 0; padding: 0; border: 3px solid var(--ink); border-top: none; background: var(--paper); }
+.suggestions button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 4px 8px; cursor: pointer; }
+.suggestions button:hover, .suggestions button:focus-visible { background: var(--brass); }
+.suggestions small { margin-left: 8px; opacity: 0.7; }
+.hint { font-size: var(--fs-1); margin: 4px 0 0; }
+.error { color: var(--seal); }
+
+/* 已接任務 */
+.entries { list-style: none; margin: 0; padding: 0; }
+.entry { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 6px 0; border-bottom: 2px dashed var(--wood-light); }
+.entry-meta { grid-column: 1 / -1; font-size: var(--fs-1); opacity: 0.8; }
+.entry-actions { grid-column: 1 / -1; font-size: var(--fs-1); }
+.empty { opacity: 0.7; margin: 0 0 8px; }
+.total { display: flex; justify-content: space-between; margin-top: 10px; font-size: var(--fs-2); }
+.bar { height: 14px; border: 3px solid var(--ink); background: var(--paper); margin-top: 6px; }
+.bar-fill { display: block; height: 100%; width: 0; background: var(--leaf); }
+.bar-fill.done { background: var(--brass); }
+
+/* 視窗 */
+.overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+.dialog { width: min(480px, 100%); border-width: 4px; box-shadow: 6px 6px 0 #000; }
+.dialog h2 { font-size: var(--fs-2); font-weight: normal; margin: 0 0 10px; }
+.field { display: grid; grid-template-columns: 64px 1fr; gap: 8px; align-items: center; margin: 8px 0; }
+.field input, .field select, .field textarea { background: var(--paper); border: 3px solid var(--ink); padding: 2px 6px; width: 100%; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: var(--paper); border: 2px solid var(--ink); padding: 0 8px; cursor: pointer; }
+.chip.on { background: var(--brass); }
+.chips input { width: 6em; }
+.actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
+
+.banner { background: var(--seal); color: var(--parchment); border: 3px solid var(--ink); padding: 6px 10px; margin-bottom: 12px; }

@@ -7,222 +7,324 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHandler, listen } from '../server/http.mjs';
 import { createDemoSource } from '../server/demo.mjs';
+import { createQuestStore } from '../server/quests.mjs';
+import { SourceError } from '../server/openproject/errors.mjs';
 
-async function withServer(options, run) {
+const CSP = "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
+async function withServer(overrides, run) {
+  const dir = await mkdtemp(join(tmpdir(), 'http-'));
+  await writeFile(join(dir, 'index.html'), '<!doctype html><title>t</title>');
+  const options = {
+    source: createDemoSource({ today: '2026-11-16' }), quests: createQuestStore(join(dir, 'quests.json')),
+    mode: 'demo', dailyTargetHours: 8,
+    staticFiles: { '/': { path: join(dir, 'index.html'), type: 'text/html; charset=utf-8' } },
+    ...overrides,
+  };
   const server = await listen(createHandler(options), { host: '127.0.0.1', port: 0 });
   try {
     await run(server.address().port);
   } finally {
     await new Promise(resolve => server.close(resolve));
+    await rm(dir, { recursive: true, force: true });
   }
 }
 
-function send(port, path, { method = 'GET', headers = {} } = {}) {
+function send(port, path, { method = 'GET', headers = {}, body, setHost } = {}) {
   return new Promise((resolve, reject) => {
-    const req = request({ host: '127.0.0.1', port, path, method, headers }, res => {
+    const req = request({ host: '127.0.0.1', port, path, method, headers, setHost }, res => {
       const chunks = [];
       res.on('data', chunk => chunks.push(chunk));
       res.on('end', () => {
-        const body = Buffer.concat(chunks).toString('utf8');
+        const text = Buffer.concat(chunks).toString('utf8');
         const isJson = (res.headers['content-type'] ?? '').startsWith('application/json');
-        resolve({ status: res.statusCode, headers: res.headers, body,
-          json: isJson && body ? JSON.parse(body) : null });
+        resolve({ status: res.statusCode, headers: res.headers, json: isJson && text ? JSON.parse(text) : null, text });
       });
     });
     req.on('error', reject);
+    if (body !== undefined) req.write(typeof body === 'string' ? body : JSON.stringify(body));
     req.end();
   });
 }
 
-const demo = () => ({ source: createDemoSource(), mode: 'demo' });
+// 模擬瀏覽器同源寫入：自訂標頭＋同源 Origin＋JSON。
+const write = (port, path, method, body) => send(port, path, {
+  method, body,
+  headers: { 'X-Quest-Board': '1', Origin: `http://127.0.0.1:${port}`, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+});
 
-test('health exposes only status and mode with safe headers', async () => {
-  await withServer(demo(), async port => {
-    const res = await send(port, '/api/health');
-    assert.equal(res.status, 200);
-    assert.deepEqual(res.json, { status: 'ok', mode: 'demo' });
-    assert.equal(res.headers['content-type'], 'application/json; charset=utf-8');
-    assert.equal(res.headers['cache-control'], 'no-store');
-    assert.equal(res.headers['x-content-type-options'], 'nosniff');
-    assert.equal(res.headers['content-security-policy'], "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+test('health, me and config', async () => {
+  await withServer({}, async port => {
+    const health = await send(port, '/api/health');
+    assert.deepEqual(health.json, { status: 'ok', mode: 'demo' });
+    assert.equal(health.headers['cache-control'], 'no-store');
+    assert.equal(health.headers['x-content-type-options'], 'nosniff');
+    assert.equal(health.headers['content-security-policy'], CSP);
+    assert.deepEqual((await send(port, '/api/me')).json, { id: 1, name: '示例冒險者' });
+    assert.deepEqual((await send(port, '/api/config')).json, { dailyTargetHours: 8 });
   });
 });
-test('snapshot and participants follow the contract', async () => {
-  await withServer(demo(), async port => {
-    const snapshot = await send(port, '/api/snapshot');
-    assert.equal(snapshot.status, 200);
-    assert.equal(snapshot.json.mode, 'demo');
-    assert.equal(snapshot.json.workPackages.length, 4);
-    const people = await send(port, '/api/work-packages/1001/participants');
-    assert.equal(people.status, 200);
-    assert.equal(people.json.workPackageId, '1001');
-    const partial = await send(port, '/api/work-packages/1004/participants');
-    assert.equal(partial.status, 200);
-    assert.equal(partial.json.complete, false);
-    const missing = await send(port, '/api/work-packages/9999/participants');
+test('time entries CRUD through the API', async () => {
+  await withServer({}, async port => {
+    const list = await send(port, '/api/time-entries?date=2026-11-16');
+    assert.equal(list.status, 200);
+    assert.equal(list.json.length, 2);
+    const created = await write(port, '/api/time-entries', 'POST', { workPackageId: 2310, date: '2026-11-16', hours: 2 });
+    assert.equal(created.status, 201);
+    assert.equal(created.json.workPackageSubject, '匯出報表效能問題');
+    const patched = await write(port, `/api/time-entries/${created.json.id}`, 'PATCH', { hours: 3 });
+    assert.equal(patched.status, 200);
+    assert.equal(patched.json.hours, 3);
+    const removed = await write(port, `/api/time-entries/${created.json.id}`, 'DELETE');
+    assert.equal(removed.status, 204);
+    assert.equal((await send(port, '/api/time-entries?date=2026-11-16')).json.length, 2);
+  });
+});
+test('input errors are 400 with the field', async () => {
+  await withServer({}, async port => {
+    const badDate = await send(port, '/api/time-entries?date=2026-02-30');
+    assert.equal(badDate.status, 400);
+    assert.equal(badDate.json.error.field, 'date');
+    const badHours = await write(port, '/api/time-entries', 'POST', { workPackageId: 1234, date: '2026-11-16', hours: 0 });
+    assert.equal(badHours.status, 400);
+    assert.deepEqual(Object.keys(badHours.json.error).sort(), ['code', 'field', 'message']);
+    assert.equal(badHours.json.error.field, 'hours');
+    assert.equal((await write(port, '/api/time-entries/abc', 'DELETE')).status, 400);
+    const badJson = await send(port, '/api/time-entries', { method: 'POST', body: '{oops',
+      headers: { 'X-Quest-Board': '1', 'Content-Type': 'application/json' } });
+    assert.equal(badJson.status, 400);
+    assert.equal(badJson.json.error.code, 'invalid_json');
+  });
+});
+test('source errors map to status codes', async () => {
+  await withServer({}, async port => {
+    const missing = await write(port, '/api/time-entries', 'POST', { workPackageId: 999, date: '2026-11-16', hours: 1 });
     assert.equal(missing.status, 404);
-    assert.equal(missing.json.error.code, 'work_package_not_found');
-    const invalid = await send(port, '/api/work-packages/abc/participants');
-    assert.equal(invalid.status, 400);
-    assert.equal(invalid.json.error.code, 'invalid_id');
+    const invalid = await write(port, '/api/time-entries', 'POST', { workPackageId: 1234, date: '2026-11-16', hours: 1, activityId: 77 });
+    assert.equal(invalid.status, 422);
+    assert.equal(invalid.json.error.code, 'validation');
+  });
+  const failing = { getMe: async () => { throw new SourceError('unauthorized'); } };
+  await withServer({ source: failing }, async port => {
+    const res = await send(port, '/api/me');
+    assert.equal(res.status, 502);
+    assert.equal(res.json.error.code, 'unauthorized');
+  });
+  const crashing = { getMe: async () => { throw new Error('SECRET_TOKEN in stack'); } };
+  await withServer({ source: crashing }, async port => {
+    const res = await send(port, '/api/me');
+    assert.equal(res.status, 500);
+    assert.ok(!res.text.includes('SECRET_TOKEN'));
   });
 });
-test('refresh flag is passed to the source', async () => {
+test('search and activities', async () => {
+  await withServer({}, async port => {
+    const found = await send(port, `/api/work-packages/search?q=${encodeURIComponent('#2051')}`);
+    assert.equal(found.json[0].id, 2051);
+    assert.deepEqual((await send(port, '/api/work-packages/search?q=')).json, []);
+    const activities = await send(port, '/api/activities?workPackageId=1234');
+    assert.ok(activities.json.length > 0);
+    assert.equal((await send(port, '/api/activities')).status, 400);
+  });
+});
+test('quests: pin with subject and activity name, re-pin updates, unpin', async () => {
+  await withServer({}, async port => {
+    assert.deepEqual((await send(port, '/api/quests')).json, []);
+    const pinned = await write(port, '/api/quests', 'POST', { workPackageId: 1234, activityId: 3 });
+    assert.equal(pinned.status, 200);
+    assert.deepEqual(pinned.json, [{ workPackageId: 1234, subject: '前端登入頁改版', activityId: 3, activityName: 'Development' }]);
+    const repinned = await write(port, '/api/quests', 'POST', { workPackageId: 1234 });
+    assert.deepEqual(repinned.json, [{ workPackageId: 1234, subject: '前端登入頁改版', activityId: null, activityName: null }]);
+    assert.equal((await write(port, '/api/quests', 'POST', { workPackageId: 1234, activityId: 77 })).status, 400);
+    assert.equal((await write(port, '/api/quests', 'POST', { workPackageId: 999 })).status, 404);
+    assert.deepEqual((await write(port, '/api/quests/1234', 'DELETE')).json, []);
+  });
+});
+test('corrupt quest file is a 500 with a clear code', async () => {
+  const quests = { list: async () => { const { QuestStoreError } = await import('../server/quests.mjs'); throw new QuestStoreError(); } };
+  await withServer({ quests }, async port => {
+    const res = await send(port, '/api/quests');
+    assert.equal(res.status, 500);
+    assert.equal(res.json.error.code, 'quests_corrupt');
+  });
+});
+test('writes require the custom header, same origin, JSON and a small body', async () => {
+  await withServer({}, async port => {
+    const body = { workPackageId: 1234, date: '2026-11-16', hours: 1 };
+    const noHeader = await send(port, '/api/time-entries', { method: 'POST', body, headers: { 'Content-Type': 'application/json' } });
+    assert.equal(noHeader.status, 403);
+    assert.equal(noHeader.json.error.code, 'csrf_rejected');
+    const foreign = await send(port, '/api/time-entries', { method: 'POST', body,
+      headers: { 'X-Quest-Board': '1', 'Content-Type': 'application/json', Origin: 'http://evil.test' } });
+    assert.equal(foreign.status, 403);
+    const noOrigin = await send(port, '/api/time-entries', { method: 'POST', body,
+      headers: { 'X-Quest-Board': '1', 'Content-Type': 'application/json' } });
+    assert.equal(noOrigin.status, 201);
+    const localhost = await send(port, '/api/time-entries', { method: 'POST', body,
+      headers: { 'X-Quest-Board': '1', 'Content-Type': 'application/json', Origin: `http://localhost:${port}` } });
+    assert.equal(localhost.status, 201);
+    const text = await send(port, '/api/time-entries', { method: 'POST', body,
+      headers: { 'X-Quest-Board': '1', 'Content-Type': 'text/plain' } });
+    assert.equal(text.status, 415);
+    const big = await send(port, '/api/time-entries', { method: 'POST', body: JSON.stringify({ comment: 'x'.repeat(17 * 1024) }),
+      headers: { 'X-Quest-Board': '1', 'Content-Type': 'application/json' } });
+    assert.equal(big.status, 413);
+  });
+});
+test('host check, method handling and static files', async () => {
+  await withServer({}, async port => {
+    const rebinding = await send(port, '/api/health', { headers: { Host: 'evil.test' } });
+    assert.equal(rebinding.status, 403);
+    const wrongMethod = await write(port, '/api/me', 'POST', {});
+    assert.equal(wrongMethod.status, 405);
+    assert.equal(wrongMethod.headers.allow, 'GET');
+    const entryMethod = await write(port, '/api/time-entries/5', 'PUT', {});
+    assert.equal(entryMethod.status, 405);
+    assert.equal(entryMethod.headers.allow, 'PATCH, DELETE');
+    assert.equal((await send(port, '/api/nope')).status, 404);
+    const page = await send(port, '/');
+    assert.equal(page.status, 200);
+    assert.match(page.headers['content-type'], /^text\/html/);
+    assert.equal(page.headers['content-security-policy'], CSP);
+    assert.equal((await send(port, '/', { method: 'HEAD' })).text, '');
+    assert.equal((await write(port, '/', 'POST', {})).status, 405);
+    assert.equal((await send(port, '/missing.js')).status, 404);
+  });
+});
+
+function rawRequest(port, text) {
+  return new Promise((resolve, reject) => {
+    const socket = connect(port, '127.0.0.1', () => socket.write(text));
+    const chunks = [];
+    socket.on('data', chunk => chunks.push(chunk));
+    socket.on('error', reject);
+    socket.on('close', () => {
+      const raw = Buffer.concat(chunks).toString('utf8');
+      resolve({ status: Number(/^HTTP\/1\.\d (\d+)/.exec(raw)?.[1]), raw });
+    });
+  });
+}
+
+test('Sec-Fetch-Site cross-site is rejected on every /api request; CORP on all responses', async () => {
+  await withServer({}, async port => {
+    const cross = await send(port, '/api/me', { headers: { 'Sec-Fetch-Site': 'Cross-Site' } });
+    assert.equal(cross.status, 403);
+    assert.equal(cross.json.error.code, 'csrf_rejected');
+    for (const value of ['same-origin', 'same-site', 'none']) {
+      assert.equal((await send(port, '/api/me', { headers: { 'Sec-Fetch-Site': value } })).status, 200);
+    }
+    const api = await send(port, '/api/health');
+    assert.equal(api.headers['cross-origin-resource-policy'], 'same-origin');
+    assert.equal(cross.headers['cross-origin-resource-policy'], 'same-origin');
+    assert.equal((await send(port, '/')).headers['cross-origin-resource-policy'], 'same-origin');
+  });
+});
+
+test('rejected writes never reach the source', async () => {
   const calls = [];
-  const source = {
-    async getSnapshot({ refresh }) { calls.push(['snapshot', refresh]); return { workPackages: [] }; },
-    async getParticipants(id, { refresh }) { calls.push(['participants', id, refresh]); return { workPackageId: id }; },
-  };
-  await withServer({ source, mode: 'demo' }, async port => {
-    await send(port, '/api/snapshot?refresh=1');
-    await send(port, '/api/snapshot');
-    await send(port, '/api/work-packages/7/participants?refresh=1');
-  });
-  assert.deepEqual(calls, [['snapshot', true], ['snapshot', false], ['participants', '7', true]]);
-});
-test('only GET and HEAD are allowed', async () => {
-  await withServer(demo(), async port => {
-    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
-      const res = await send(port, '/api/snapshot', { method });
-      assert.equal(res.status, 405, method);
-      assert.equal(res.headers.allow, 'GET, HEAD');
-      assert.equal(res.json.error.code, 'method_not_allowed');
+  const real = createDemoSource({ today: '2026-11-16' });
+  const source = { ...real, createEntry: async input => { calls.push(input); return real.createEntry(input); } };
+  await withServer({ source }, async port => {
+    const body = { workPackageId: 1234, date: '2026-11-16', hours: 1 };
+    const json = { 'Content-Type': 'application/json' };
+    const custom = { 'X-Quest-Board': '1' };
+    const cases = [
+      ['no custom header', { headers: json }, 403],
+      ['foreign origin', { headers: { ...custom, ...json, Origin: 'http://evil.test' } }, 403],
+      ['null origin', { headers: { ...custom, ...json, Origin: 'null' } }, 403],
+      ['upper-case foreign origin', { headers: { ...custom, ...json, Origin: 'HTTP://EVIL.TEST' } }, 403],
+      ['text/plain without header (sendBeacon)', { headers: { 'Content-Type': 'text/plain' } }, 403],
+      ['text/plain with header', { headers: { ...custom, 'Content-Type': 'text/plain' } }, 415],
+      ['application/jsonp', { headers: { ...custom, 'Content-Type': 'application/jsonp' } }, 415],
+      ['oversized body', { headers: { ...custom, ...json }, body: JSON.stringify({ comment: 'x'.repeat(17 * 1024) }) }, 413],
+      ['Sec-Fetch-Site cross-site', { headers: { ...custom, ...json, 'Sec-Fetch-Site': 'cross-site' } }, 403],
+    ];
+    for (const [name, options, status] of cases) {
+      const res = await send(port, '/api/time-entries', { method: 'POST', body, ...options });
+      assert.equal(res.status, status, name);
     }
-    const head = await send(port, '/api/health', { method: 'HEAD' });
-    assert.equal(head.status, 200);
-    assert.equal(head.body, '');
-    assert.ok(Number(head.headers['content-length']) > 0);
+    assert.equal(calls.length, 0);
+    const upper = await send(port, '/api/time-entries', { method: 'POST', body,
+      headers: { ...custom, ...json, Origin: `HTTP://127.0.0.1:${port}` } });
+    assert.equal(upper.status, 201);
+    assert.equal(calls.length, 1);
   });
 });
-test('HEAD on a missing path returns 404 headers without a body', async () => {
-  await withServer(demo(), async port => {
-    const res = await send(port, '/missing', { method: 'HEAD' });
-    assert.equal(res.status, 404);
-    assert.equal(res.body, '');
-    assert.ok(Number(res.headers['content-length']) > 0);
+
+test('request boundary cases', async () => {
+  await withServer({}, async port => {
+    const options = await send(port, '/api/time-entries', { method: 'OPTIONS' });
+    assert.equal(options.status, 405);
+    assert.deepEqual(Object.keys(options.headers).filter(name => name.startsWith('access-control-')), []);
+
+    const noHost = await send(port, '/api/health', { setHost: false });
+    assert.ok([400, 403].includes(noHost.status), `missing Host (HTTP/1.1) got ${noHost.status}`);
+    assert.equal((await rawRequest(port, 'GET /api/health HTTP/1.0\r\n\r\n')).status, 403);
+    assert.equal((await send(port, '/api/health', { headers: { Host: `127.0.0.1:${port + 1}` } })).status, 403);
+
+    assert.equal((await rawRequest(port, `GET //x HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nConnection: close\r\n\r\n`)).status, 400);
+    assert.equal((await rawRequest(port, `GET /a\\b HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nConnection: close\r\n\r\n`)).status, 400);
+    assert.equal((await rawRequest(port, `GET /%2e%2e/index.html HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nConnection: close\r\n\r\n`)).status, 404);
+
+    const created = await write(port, '/api/time-entries', 'POST', { workPackageId: 2310, date: '2026-11-16', hours: 1 });
+    const removed = await write(port, `/api/time-entries/${created.json.id}`, 'DELETE');
+    assert.equal(removed.status, 204);
+    assert.equal(removed.text, '');
   });
 });
-test('config, source files, and traversal paths are never served', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'dashboard-static-'));
+
+test('a static file deleted after startup is a 404, not a 500', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'gone-'));
+  const path = join(dir, 'gone.js');
+  await writeFile(path, 'x');
   try {
-    const page = join(dir, 'index.html');
-    await writeFile(page, '<!doctype html><title>t</title>');
-    await writeFile(join(dir, 'secret.json'), '{"apiToken":"FAKE_TOKEN_123"}');
-    const staticFiles = { '/': { path: page, type: 'text/html; charset=utf-8' } };
-    await withServer({ ...demo(), staticFiles }, async port => {
-      assert.equal((await send(port, '/')).status, 200);
-      for (const path of ['/secret.json', '/index.html', '/../secret.json', '/%2e%2e/secret.json',
-        '/config/local.json', '/config/example.json', '/server/config.mjs',
-        '/package.json', '/client/index.html', '/../config/local.json',
-        '/%2e%2e/config/local.json', '/api/../config/local.json', '/.git/config']) {
-        const res = await send(port, path);
-        assert.equal(res.status, 404, path);
-        assert.equal(res.json.error.code, 'not_found', path);
-      }
+    await withServer({ staticFiles: { '/gone.js': { path, type: 'text/javascript' } } }, async port => {
+      assert.equal((await send(port, '/gone.js')).status, 200);
+      await rm(path);
+      const res = await send(port, '/gone.js');
+      assert.equal(res.status, 404);
+      assert.equal(res.json.error.code, 'not_found');
     });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
 });
-test('rejects request targets that are not origin-form paths', async () => {
-  await withServer(demo(), async port => {
-    for (const path of ['//evil/api/health', 'http://evil.test/api/health', '/\\api/health']) {
-      const res = await send(port, path, { headers: { host: `127.0.0.1:${port}` } });
-      assert.equal(res.status, 400, path);
-      assert.equal(res.json.error.code, 'invalid_request_target', path);
-    }
-  });
-});
-test('static whitelist serves only listed files', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'dashboard-static-'));
-  try {
-    const page = join(dir, 'index.html');
-    await writeFile(page, '<!doctype html><title>t</title>');
-    const staticFiles = { '/': { path: page, type: 'text/html; charset=utf-8' } };
-    await withServer({ ...demo(), staticFiles }, async port => {
-      const res = await send(port, '/');
-      assert.equal(res.status, 200);
-      assert.equal(res.headers['content-type'], 'text/html; charset=utf-8');
-      assert.equal(res.body, '<!doctype html><title>t</title>');
-      assert.equal((await send(port, '/index.html')).status, 404);
-    });
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-});
-test('rejects foreign Host headers', async () => {
-  await withServer(demo(), async port => {
-    const evil = await send(port, '/api/health', { headers: { host: 'evil.test' } });
-    assert.equal(evil.status, 403);
-    assert.equal(evil.json.error.code, 'forbidden_host');
-    const wrongPort = await send(port, '/api/health', { headers: { host: `127.0.0.1:${port + 1}` } });
-    assert.equal(wrongPort.status, 403);
-    const localhost = await send(port, '/api/health', { headers: { host: `localhost:${port}` } });
-    assert.equal(localhost.status, 200);
-    const upper = await send(port, '/api/health', { headers: { host: `LOCALHOST:${port}` } });
-    assert.equal(upper.status, 200);
-    // HTTP/1.0 不要求 Host，Node 不會先擋下，因此能驗證缺少 Host 時的處理。
-    const statusLine = await new Promise((resolve, reject) => {
-      const socket = connect(port, '127.0.0.1', () => socket.write('GET /api/health HTTP/1.0\r\n\r\n'));
-      let data = '';
-      socket.on('data', chunk => { data += chunk; });
-      socket.on('end', () => resolve(data.split('\r\n')[0]));
-      socket.on('error', reject);
-    });
-    assert.match(statusLine, /^HTTP\/1\.[01] 403 /);
-  });
-});
-test('empty data is returned as a valid snapshot', async () => {
-  const empty = {
-    mode: 'demo', revision: 'empty', projects: [], workPackages: [], statuses: [],
-    complete: true, stale: false, lastSuccessAt: null,
-    progress: { loaded: 0, total: 0 }, error: null,
-  };
-  const source = { async getSnapshot() { return empty; }, async getParticipants() { return null; } };
-  await withServer({ source, mode: 'demo' }, async port => {
-    const res = await send(port, '/api/snapshot');
-    assert.equal(res.status, 200);
-    assert.deepEqual(res.json, empty);
-  });
-});
-test('source failures return a generic error without details', async () => {
-  const source = {
-    async getSnapshot() { throw new Error('SECRET token=FAKE_TOKEN_123'); },
-    async getParticipants() { throw new Error('SECRET token=FAKE_TOKEN_123'); },
-  };
+
+test('an aborted request body does not crash or log', async () => {
   const logged = [];
   const original = console.error;
-  console.error = (...args) => logged.push(args.map(String).join(' '));
+  console.error = (...args) => logged.push(args);
   try {
-    await withServer({ source, mode: 'demo' }, async port => {
-      for (const path of ['/api/snapshot', '/api/work-packages/1/participants']) {
-        const res = await send(port, path);
-        assert.equal(res.status, 500, path);
-        assert.deepEqual(res.json, { error: { code: 'internal_error', message: '伺服器內部錯誤' } });
-        assert.ok(!res.body.includes('SECRET'));
-      }
+    await withServer({}, async port => {
+      await new Promise(resolve => {
+        const socket = connect(port, '127.0.0.1', () => {
+          socket.write(`POST /api/time-entries HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nX-Quest-Board: 1\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n{"a"`);
+          setTimeout(() => socket.destroy(), 50);
+        });
+        socket.on('close', resolve);
+      });
+      await new Promise(resolve => setTimeout(resolve, 100));
+      assert.equal((await send(port, '/api/health')).status, 200);
     });
   } finally {
     console.error = original;
   }
-  assert.equal(logged.length, 2);
-  const output = logged.join('\n');
-  assert.ok(!output.includes('SECRET'));
-  assert.ok(!output.includes('FAKE_TOKEN_123'));
+  assert.deepEqual(logged, []);
 });
 
-test('static entries can carry their own CSP', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'dashboard-csp-'));
+test('quest store errors are logged by code only', async () => {
+  const { QuestStoreError } = await import('../server/quests.mjs');
+  const quests = { list: async () => { throw new QuestStoreError(); } };
+  const logged = [];
+  const original = console.error;
+  console.error = (...args) => logged.push(args);
   try {
-    const page = join(dir, 'index.html');
-    await writeFile(page, '<!doctype html>');
-    const csp = "default-src 'self'; script-src 'self' 'sha256-abc='";
-    const staticFiles = { '/': { path: page, type: 'text/html; charset=utf-8', csp } };
-    await withServer({ ...demo(), staticFiles }, async port => {
-      assert.equal((await send(port, '/')).headers['content-security-policy'], csp);
-      assert.equal((await send(port, '/api/health')).headers['content-security-policy'], "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+    await withServer({ quests }, async port => {
+      assert.equal((await send(port, '/api/quests')).status, 500);
     });
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    console.error = original;
   }
+  assert.equal(logged.length, 1);
+  assert.equal(logged[0][0], 'Quest store error:');
 });

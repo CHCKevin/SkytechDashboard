@@ -1,38 +1,45 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createStaticFiles, assertStaticFiles } from '../server/static-files.mjs';
+import { tmpdir } from 'node:os';
+import { scanStaticFiles } from '../server/static-files.mjs';
 
-const root = fileURLToPath(new URL('../', import.meta.url));
+async function withDist(files, run) {
+  const dir = await mkdtemp(join(tmpdir(), 'dist-'));
+  try {
+    for (const [name, content] of Object.entries(files)) {
+      await mkdir(join(dir, name, '..'), { recursive: true });
+      await writeFile(join(dir, name), content);
+    }
+    await run(dir);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
 
-test('whitelist covers the client and vendored three files, and they exist', async () => {
-  const files = createStaticFiles(root);
-  assert.equal(files['/'].path, join(root, 'client', 'index.html'));
-  assert.equal(files['/'].type, 'text/html; charset=utf-8');
-  assert.equal(files['/main.mjs'].type, 'text/javascript; charset=utf-8');
-  assert.equal(files['/styles.css'].type, 'text/css; charset=utf-8');
-  assert.equal(files['/favicon.svg'].type, 'image/svg+xml');
-  // 後製模組保留 three 原本的目錄結構，模組內的 ../shaders/ 相對匯入才能解析。
-  for (const name of ['EffectComposer', 'RenderPass', 'UnrealBloomPass', 'OutputPass', 'Pass', 'ShaderPass', 'MaskPass']) {
-    assert.equal(files[`/vendor/postprocessing/${name}.js`].path,
-      join(root, 'node_modules', 'three', 'examples', 'jsm', 'postprocessing', `${name}.js`));
-  }
-  for (const name of ['CopyShader', 'LuminosityHighPassShader', 'OutputShader']) {
-    assert.equal(files[`/vendor/shaders/${name}.js`].path,
-      join(root, 'node_modules', 'three', 'examples', 'jsm', 'shaders', `${name}.js`));
-  }
-  for (const url of ['/procedural.mjs', '/sky.mjs', '/planet-look.mjs']) {
-    assert.equal(files[url].path, join(root, 'client', url.slice(1)), url);
-  }
-  assert.equal(files['/shared/layout.mjs'].path, join(root, 'shared', 'layout.mjs'));
-  assert.equal(files['/vendor/three.module.js'].path, join(root, 'node_modules', 'three', 'build', 'three.module.js'));
-  for (const url of Object.keys(files)) {
-    assert.ok(!/config|package|server|\.\./.test(url), url);
-  }
-  await assertStaticFiles(files);
+test('maps every known file under dist to a URL, with / for index.html', async () => {
+  await withDist({
+    'index.html': '<!doctype html>', 'assets/index-abc.js': '', 'assets/index-abc.css': '',
+    'assets/cubic-11.woff2': '', 'favicon.svg': '', 'notes.txt': '',
+  }, async dir => {
+    const files = await scanStaticFiles(dir);
+    assert.deepEqual(Object.keys(files).sort(), ['/', '/assets/cubic-11.woff2', '/assets/index-abc.css', '/assets/index-abc.js', '/favicon.svg', '/index.html']);
+    assert.equal(files['/'].type, 'text/html; charset=utf-8');
+    assert.equal(files['/assets/cubic-11.woff2'].type, 'font/woff2');
+    assert.equal(files['/assets/index-abc.js'].path, join(dir, 'assets', 'index-abc.js'));
+  });
 });
-test('missing static files fail with only the public path', async () => {
-  const files = { '/gone.mjs': { path: join(root, 'does-not-exist', 'gone.mjs'), type: 'text/javascript; charset=utf-8' } };
-  await assert.rejects(assertStaticFiles(files), { message: 'Missing static file for /gone.mjs; run npm install' });
+test('names with spaces or non-ASCII match the percent-encoded URL', async () => {
+  await withDist({ 'index.html': '', 'assets/a b.js': '', 'assets/字.css': '' }, async dir => {
+    const files = await scanStaticFiles(dir);
+    assert.equal(files['/assets/a%20b.js'].path, join(dir, 'assets', 'a b.js'));
+    assert.ok(files[`/assets/${encodeURIComponent('字')}.css`]);
+  });
+});
+test('missing dist or index.html explains how to build', async () => {
+  await assert.rejects(scanStaticFiles(join(tmpdir(), 'no-such-dist-xyz')), { message: /npm run build/ });
+  await withDist({ 'assets/a.js': '' }, async dir => {
+    await assert.rejects(scanStaticFiles(dir), { message: /npm run build/ });
+  });
 });
