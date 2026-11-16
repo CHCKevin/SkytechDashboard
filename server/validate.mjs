@@ -95,6 +95,12 @@ export function parseQuestInput(body) {
   };
 }
 
+export function parseHallMemberInput(body) {
+  assertObject(body, ['userId']);
+  if (body.userId === undefined) throw new InputError('userId', '缺少欄位：userId');
+  return { userId: parseId(body.userId, 'userId') };
+}
+
 // 去除前後空白與開頭的 #；空字串代表「不搜尋」。
 export function parseSearchTerm(value) {
   const term = (typeof value === 'string' ? value : '').trim().replace(/^#/, '').trim();

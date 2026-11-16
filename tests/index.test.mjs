@@ -99,6 +99,24 @@ test('demo mode serves the page, API, and stores quests in dataDir', async () =>
     assert.equal(saved[0].workPackageId, 1234);
   });
 });
+test('demo mode starts with default hall members and stores changes in dataDir', async () => {
+  await runServer({ mode: 'demo' }, async (base, dir) => {
+    const now = new Date();
+    const pad = value => String(value).padStart(2, '0');
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const hall = await (await fetch(`${base}/api/hall?date=${today}`)).json();
+    assert.equal(hall.members.length, 5);
+    assert.deepEqual([...new Set(hall.members.map(member => member.status))].sort(), ['idle', 'resting', 'working']);
+    const added = await fetch(`${base}/api/hall/members`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Quest-Board': '1', Origin: base },
+      body: JSON.stringify({ userId: 15 }),
+    });
+    assert.equal(added.status, 200);
+    await added.text();
+    const saved = JSON.parse(await readFile(join(dir, 'data', 'demo-hall.json'), 'utf8'));
+    assert.deepEqual(saved.map(member => member.userId), [1, 11, 12, 13, 14, 15]);
+  });
+});
 test('live mode reports source errors as JSON and never prints the token', async () => {
   const closed = await freePort();
   const output = await runServer({ mode: 'live', baseUrl: `http://127.0.0.1:${closed}/`, apiToken: 'FAKE_TOKEN_123' }, async base => {

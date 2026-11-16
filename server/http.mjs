@@ -1,8 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { SourceError, errorInfo, statusFor } from './openproject/errors.mjs';
+import { HallFullError, HallStoreError } from './hall.mjs';
+import { buildHall } from './hall-status.mjs';
 import { QuestStoreError } from './quests.mjs';
-import { InputError, parseDate, parseEntryInput, parsePathId, parseQuestInput, parseSearchTerm } from './validate.mjs';
+import { InputError, parseDate, parseEntryInput, parseHallMemberInput, parsePathId, parseQuestInput, parseSearchTerm } from './validate.mjs';
 
 // Vite 產物沒有 inline script 與 import map，因此用固定 CSP。
 export const CSP = "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
@@ -19,7 +21,7 @@ class HttpError extends Error {
 }
 
 // 路由表：[方法, 路徑樣式, 處理函式]；同一路徑有多個方法時，405 的 Allow 依此產生。
-function routes({ source, quests, mode, dailyTargetHours }) {
+function routes({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackageId }) {
   return [
     ['GET', /^\/api\/health$/, () => ({ body: { status: 'ok', mode } })],
     ['GET', /^\/api\/me$/, async () => ({ body: await source.getMe() })],
@@ -49,11 +51,25 @@ function routes({ source, quests, mode, dailyTargetHours }) {
       return { body: await quests.upsert({ workPackageId, subject: wp.subject, activityId, activityName }) };
     }],
     ['DELETE', /^\/api\/quests\/([^/]+)$/, async ({ match }) => ({ body: await quests.remove(parsePathId(match[1], 'workPackageId')) })],
+    ['GET', /^\/api\/users\/search$/, async ({ url }) => ({ body: await source.searchUsers(parseSearchTerm(url.searchParams.get('q'))) })],
+    // 大廳只讀取 OpenProject：成員名單存本機，當日工時一次查詢取回後在這裡判定狀態。
+    ['GET', /^\/api\/hall$/, async ({ url }) => {
+      const date = parseDate(url.searchParams.get('date'));
+      const members = await hall.list();
+      const entries = await source.listEntriesForUsers(date, members.map(member => member.userId));
+      return { body: buildHall(date, members, entries, leaveWorkPackageId) };
+    }],
+    ['POST', /^\/api\/hall\/members$/, async ({ readBody }) => {
+      const { userId } = parseHallMemberInput(await readBody());
+      const user = await source.getUser(userId);
+      return { body: await hall.add({ userId: user.id, name: user.name }) };
+    }],
+    ['DELETE', /^\/api\/hall\/members\/([^/]+)$/, async ({ match }) => ({ body: await hall.remove(parsePathId(match[1], 'userId')) })],
   ];
 }
 
-export function createHandler({ source, quests, mode, dailyTargetHours, staticFiles = {} }) {
-  const table = routes({ source, quests, mode, dailyTargetHours });
+export function createHandler({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackageId, staticFiles = {} }) {
+  const table = routes({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackageId });
   return async (req, res) => {
     try {
       await route(req, res, table, staticFiles);
@@ -169,8 +185,9 @@ function handleError(req, res, error) {
     return sendError(req, res, 400, { code: error.code, message: error.message, field: error.field });
   }
   if (error instanceof SourceError) return sendError(req, res, statusFor(error.code), errorInfo(error));
-  if (error instanceof QuestStoreError) {
-    console.error('Quest store error:', error.code);
+  if (error instanceof HallFullError) return sendError(req, res, 409, { code: error.code, message: error.message });
+  if (error instanceof QuestStoreError || error instanceof HallStoreError) {
+    console.error(error instanceof QuestStoreError ? 'Quest store error:' : 'Hall store error:', error.code);
     return sendError(req, res, 500, { code: error.code, message: error.message });
   }
   // 只記錄白名單欄位，不記錄訊息或堆疊：來源錯誤可能含 token 或來源回應。

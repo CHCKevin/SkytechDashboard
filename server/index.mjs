@@ -2,7 +2,8 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { loadConfig } from './config.mjs';
-import { createDemoSource } from './demo.mjs';
+import { createDemoSource, DEMO_HALL_MEMBERS } from './demo.mjs';
+import { createHallStore } from './hall.mjs';
 import { createHandler, listen } from './http.mjs';
 import { createClient } from './openproject/client.mjs';
 import { createQuestStore } from './quests.mjs';
@@ -21,7 +22,15 @@ async function main() {
     : createTimeTrackingSource({ client: createClient(config) });
   // 示例與真實的 work package 編號不同，常駐任務分開存放。
   const quests = createQuestStore(resolve(root, config.dataDir, config.mode === 'demo' ? 'demo-quests.json' : 'quests.json'));
-  const handler = createHandler({ source, quests, mode: config.mode, dailyTargetHours: config.dailyTargetHours, staticFiles });
+  // 示例模式第一次啟動時大廳裡已有幾位假成員；真實模式從空的大廳開始。
+  const hall = createHallStore(
+    resolve(root, config.dataDir, config.mode === 'demo' ? 'demo-hall.json' : 'hall.json'),
+    { initial: config.mode === 'demo' ? DEMO_HALL_MEMBERS : [] },
+  );
+  const handler = createHandler({
+    source, quests, hall, mode: config.mode, dailyTargetHours: config.dailyTargetHours,
+    leaveWorkPackageId: config.leaveWorkPackageId, staticFiles,
+  });
   const server = await listen(handler, { host: config.host, port: config.port });
   console.log(`${config.mode === 'demo' ? '示例模式' : '即時模式'}已啟動：http://${config.host}:${config.port}/`);
   const stop = () => {
