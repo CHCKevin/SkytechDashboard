@@ -37,29 +37,31 @@
 </script>
 
 <div class="overlay">
-  <form class="dialog parchment" role="dialog" aria-modal="true" aria-labelledby="pin-title" onsubmit={submit}>
-    <h2 id="pin-title">📌 釘上常駐任務</h2>
-    <WorkPackageSearch label="搜尋要釘上的 work package" delay={searchDelay} onselect={choose} />
-    {#if workPackage}
-      <p>#{workPackage.id} {workPackage.subject}</p>
-      {#if activities === null}
-        <p class="hint">讀取活動類型…</p>
-      {:else}
-        <div class="field">
-          <span id="pin-activity-label">預設活動</span>
-          <select aria-labelledby="pin-activity-label" bind:value={activityId}>
-            <option value={null}>不指定</option>
-            {#each activities as activity (activity.id)}
-              <option value={activity.id}>{activity.name}</option>
-            {/each}
-          </select>
-        </div>
+  <div class="dialog parchment" role="dialog" aria-modal="true" aria-labelledby="pin-title">
+    <form onsubmit={submit}>
+      <h2 id="pin-title">📌 釘上常駐任務</h2>
+      <WorkPackageSearch label="搜尋要釘上的 work package" delay={searchDelay} onselect={choose} />
+      {#if workPackage}
+        <p>#{workPackage.id} {workPackage.subject}</p>
+        {#if activities === null}
+          <p class="hint">讀取活動類型…</p>
+        {:else}
+          <div class="field">
+            <span id="pin-activity-label">預設活動</span>
+            <select aria-labelledby="pin-activity-label" bind:value={activityId}>
+              <option value={null}>不指定</option>
+              {#each activities as activity (activity.id)}
+                <option value={activity.id}>{activity.name}</option>
+              {/each}
+            </select>
+          </div>
+        {/if}
       {/if}
-    {/if}
-    {#if error}<p class="hint error" role="alert">{error}</p>{/if}
-    <div class="actions">
-      <button type="button" class="btn" disabled={pending} onclick={oncancel}>取消</button>
-      <button type="submit" class="btn btn-primary" disabled={!workPackage || activities === null || pending}>釘上布告欄</button>
-    </div>
-  </form>
+      {#if error}<p class="hint error" role="alert">{error}</p>{/if}
+      <div class="actions">
+        <button type="button" class="btn" disabled={pending} onclick={oncancel}>取消</button>
+        <button type="submit" class="btn btn-primary" disabled={!workPackage || activities === null || pending}>釘上布告欄</button>
+      </div>
+    </form>
+  </div>
 </div>

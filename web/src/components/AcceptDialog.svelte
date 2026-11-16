@@ -66,51 +66,53 @@
 </script>
 
 <div class="overlay">
-  <form class="dialog parchment" role="dialog" aria-modal="true" aria-labelledby="accept-title" onsubmit={submit}>
-    <h2 id="accept-title">
-      {mode === 'edit' ? '✎ 修改任務紀錄' : '📜 接下任務'}：#{workPackage.id} {workPackage.subject}
-    </h2>
+  <div class="dialog parchment" role="dialog" aria-modal="true" aria-labelledby="accept-title">
+    <form onsubmit={submit}>
+      <h2 id="accept-title">
+        {mode === 'edit' ? '✎ 修改任務紀錄' : '📜 接下任務'}：#{workPackage.id} {workPackage.subject}
+      </h2>
 
-    <label class="field"><span>日期</span><input type="date" bind:value={date} required /></label>
+      <label class="field"><span>日期</span><input type="date" bind:value={date} required /></label>
 
-    <div class="field">
-      <span id="hours-label">時數</span>
-      <div class="chips">
-        {#each QUICK_HOURS as hours}
-          <button type="button" class="chip" class:on={hoursText === String(hours)} onclick={() => (hoursText = String(hours))}>{hours}</button>
-        {/each}
-        <input type="text" inputmode="decimal" aria-labelledby="hours-label" placeholder="例如 2.5" bind:value={hoursText} />
-      </div>
-    </div>
-    {#if hoursError}<p class="hint error" role="alert">{hoursError}</p>{/if}
-
-    <div class="field">
-      <span id="activity-label">活動</span>
-      {#if activities === null}
-        <span>讀取中…</span>
-      {:else}
-        <select aria-labelledby="activity-label" bind:value={activityId}>
-          <option value={null}>不指定</option>
-          {#if missingOriginal}
-            <option value={originalActivity.id}>{activityError ? `${originalActivity.name}（保留原設定）` : originalActivity.name}</option>
-          {/if}
-          {#each activities as activity (activity.id)}
-            <option value={activity.id}>{activity.name}</option>
+      <div class="field">
+        <span id="hours-label">時數</span>
+        <div class="chips">
+          {#each QUICK_HOURS as hours}
+            <button type="button" class="chip" class:on={hoursText === String(hours)} onclick={() => (hoursText = String(hours))}>{hours}</button>
           {/each}
-        </select>
-      {/if}
-    </div>
-    {#if activityError}<p class="hint error">{activityError}</p>{/if}
+          <input type="text" inputmode="decimal" aria-labelledby="hours-label" placeholder="例如 2.5" bind:value={hoursText} />
+        </div>
+      </div>
+      {#if hoursError}<p class="hint error" role="alert">{hoursError}</p>{/if}
 
-    <label class="field"><span>備註</span><textarea rows="3" maxlength="1000" bind:value={comment}></textarea></label>
+      <div class="field">
+        <span id="activity-label">活動</span>
+        {#if activities === null}
+          <span>讀取中…</span>
+        {:else}
+          <select aria-labelledby="activity-label" bind:value={activityId}>
+            <option value={null}>不指定</option>
+            {#if missingOriginal}
+              <option value={originalActivity.id}>{activityError ? `${originalActivity.name}（保留原設定）` : originalActivity.name}</option>
+            {/if}
+            {#each activities as activity (activity.id)}
+              <option value={activity.id}>{activity.name}</option>
+            {/each}
+          </select>
+        {/if}
+      </div>
+      {#if activityError}<p class="hint error">{activityError}</p>{/if}
 
-    {#if submitError}<p class="hint error" role="alert">{submitError}</p>{/if}
+      <label class="field"><span>備註</span><textarea rows="3" maxlength="1000" bind:value={comment}></textarea></label>
 
-    <div class="actions">
-      <button type="button" class="btn" disabled={pending} onclick={oncancel}>取消</button>
-      <button type="submit" class="btn btn-primary" disabled={pending}>
-        {pending ? '送出中…' : mode === 'edit' ? '更新紀錄' : '接下任務！'}
-      </button>
-    </div>
-  </form>
+      {#if submitError}<p class="hint error" role="alert">{submitError}</p>{/if}
+
+      <div class="actions">
+        <button type="button" class="btn" disabled={pending} onclick={oncancel}>取消</button>
+        <button type="submit" class="btn btn-primary" disabled={pending}>
+          {pending ? '送出中…' : mode === 'edit' ? '更新紀錄' : '接下任務！'}
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
