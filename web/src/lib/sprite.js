@@ -106,12 +106,13 @@ export function spriteFor(userId, status = 'working') {
 
 export const STATUS_LABELS = { working: '工作中', idle: '發呆', resting: '休息' };
 
-const ICON_COLORS = { X: '#2b1a0e', W: '#fff8e0', M: '#9aa3ad', T: '#8a5a35', Z: '#4f8fd9' };
+// 圖示畫在淺色底的小牌子上（底色與外框由 CSS 的 .status-icon 提供）。
+const ICON_COLORS = { X: '#2b1a0e', M: '#7d8791', T: '#8a5a35', Z: '#2f6fc0' };
 export const STATUS_ICONS = {
   // 槌子
   working: toArt(['.MMMMM.', '.MMMMM.', '.MMMMM.', '...T...', '...T...', '...T...', '...T...'], ICON_COLORS),
-  // 對話泡泡裡的三個點
-  idle: toArt(['.......', 'WWWWWWW', 'WXWXWXW', 'WWWWWWW', '.WW....', '.W.....', '.......'], ICON_COLORS),
+  // 三個點
+  idle: toArt(['.......', '.......', '.......', '.X.X.X.', '.X.X.X.', '.......', '.......'], ICON_COLORS),
   // Z
-  resting: toArt(['ZZZZZZZ', '.....ZZ', '....ZZ.', '...ZZ..', '..ZZ...', '.ZZ....', 'ZZZZZZZ'], ICON_COLORS),
+  resting: toArt(['.ZZZZZ.', '.....Z.', '....Z..', '...Z...', '..Z....', '.Z.....', '.ZZZZZ.'], ICON_COLORS),
 };

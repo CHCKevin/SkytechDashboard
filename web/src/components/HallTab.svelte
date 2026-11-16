@@ -80,7 +80,7 @@
   }
 
   async function remove(member) {
-    if (!window.confirm(`請 ${member.name} 離開大廳？（不會影響他的工時紀錄）`)) return;
+    if (!window.confirm(`請 ${member.name} 離開大廳？（工時紀錄不受影響）`)) return;
     try {
       await api.removeHallMember(member.userId);
       selectedId = null;
