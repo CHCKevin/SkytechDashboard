@@ -9,7 +9,7 @@ test('demo defaults to loopback, no token, and default paths', () => {
   assert.deepEqual(parseConfig({ mode: 'demo' }), {
     mode: 'demo', host: '127.0.0.1', port: 4173,
     baseUrl: null, apiToken: null,
-    dailyTargetHours: 8, dataDir: 'data', staticDir: 'web/dist',
+    dailyTargetHours: 8, leaveWorkPackageId: 200, dataDir: 'data', staticDir: 'web/dist',
   });
 });
 test('validates daily target and directories', () => {
@@ -51,5 +51,12 @@ test('loadConfig reads JSON and sanitizes parse errors', async () => {
       { message: 'Config file is missing or unreadable' });
   } finally {
     await rm(dir, { recursive: true, force: true });
+  }
+});
+test('leaveWorkPackageId defaults to 200 and must be a positive integer', () => {
+  assert.equal(parseConfig({ mode: 'demo' }).leaveWorkPackageId, 200);
+  assert.equal(parseConfig({ mode: 'demo', leaveWorkPackageId: 77 }).leaveWorkPackageId, 77);
+  for (const bad of [0, -1, 1.5, '200', null]) {
+    assert.throws(() => parseConfig({ mode: 'demo', leaveWorkPackageId: bad }), /leaveWorkPackageId/);
   }
 });
