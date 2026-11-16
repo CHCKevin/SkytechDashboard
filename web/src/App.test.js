@@ -135,3 +135,9 @@ test('a failed delete reloads the day so a delete that did succeed disappears', 
   await vi.waitFor(() => expect(screen.queryByRole('button', { name: /^刪 / })).toBeNull());
   confirm.mockRestore();
 });
+test('one failing startup request does not discard the others', async () => {
+  api.listQuests.mockRejectedValue(new api.ApiError(502, 'network', '無法連線到 OpenProject'));
+  render(App);
+  expect(await screen.findByText('冒險者：Ted')).toBeTruthy();
+  expect(await screen.findByText(/無法連線到 OpenProject/)).toBeTruthy();
+});

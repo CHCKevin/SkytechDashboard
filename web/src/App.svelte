@@ -25,14 +25,13 @@
   let latestLoad = 0;
 
   onMount(async () => {
-    try {
-      const [user, config, pinned] = await Promise.all([api.getMe(), api.getConfig(), api.listQuests()]);
-      me = user;
-      target = config.dailyTargetHours;
-      quests = pinned;
-    } catch (error) {
-      banner = error.message;
-    }
+    // 各自獨立：其中一個失敗不該讓其他已成功的資料被丟掉。
+    const [user, config, pinned] = await Promise.allSettled([api.getMe(), api.getConfig(), api.listQuests()]);
+    if (user.status === 'fulfilled') me = user.value;
+    if (config.status === 'fulfilled') target = config.value.dailyTargetHours;
+    if (pinned.status === 'fulfilled') quests = pinned.value;
+    const failed = [user, config, pinned].find(result => result.status === 'rejected');
+    if (failed) banner = failed.reason.message;
   });
 
   $effect(() => {

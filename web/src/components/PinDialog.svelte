@@ -15,8 +15,11 @@
     activityId = null;
     error = '';
     try {
-      activities = await listActivities(selected.id);
+      const loaded = await listActivities(selected.id);
+      // 只採用最後一次選擇的結果，較慢的舊回應不能蓋掉新選擇的活動清單。
+      if (workPackage === selected) activities = loaded;
     } catch (loadError) {
+      if (workPackage !== selected) return;
       activities = [];
       error = `活動類型讀取失敗：${loadError.message}`;
     }

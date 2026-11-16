@@ -56,3 +56,10 @@ test('query parameters are encoded', async () => {
   expect(fetch.mock.calls[2][0]).toBe('/api/quests/7');
   expect(fetch.mock.calls[2][1].method).toBe('DELETE');
 });
+test('a fetch timeout becomes a timeout ApiError and requests carry an abort signal', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => { throw new DOMException('signal timed out', 'TimeoutError'); }));
+  await expect(api.createEntry({})).rejects.toMatchObject({ status: 0, code: 'timeout', message: '本機伺服器回應逾時，請重新整理確認結果' });
+  const fetch = mockFetch(200, []);
+  await api.listQuests();
+  expect(fetch.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+});

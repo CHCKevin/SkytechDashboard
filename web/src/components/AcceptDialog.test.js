@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import AcceptDialog from './AcceptDialog.svelte';
 
@@ -110,4 +110,13 @@ test('cancel calls oncancel', async () => {
   render(AcceptDialog, props);
   await userEvent.click(screen.getByRole('button', { name: '取消' }));
   expect(props.oncancel).toHaveBeenCalled();
+});
+test('a second submit while one is pending is ignored', async () => {
+  const props = base({ onsubmit: vi.fn(() => new Promise(() => {})) });
+  render(AcceptDialog, props);
+  await userEvent.type(screen.getByRole('textbox', { name: '時數' }), '1');
+  const form = screen.getByRole('dialog').querySelector('form');
+  await fireEvent.submit(form);
+  await fireEvent.submit(form);
+  expect(props.onsubmit).toHaveBeenCalledTimes(1);
 });

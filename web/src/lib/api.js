@@ -15,8 +15,15 @@ async function request(path, { method = 'GET', body } = {}) {
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   let res;
   try {
-    res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
-  } catch {
+    // 後端一次請求最多可能連續呼叫 OpenProject 兩次（各 10 秒）並重試讀取，所以放寬到 45 秒。
+    res = await fetch(path, {
+      method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(45_000),
+    });
+  } catch (error) {
+    // 逾時時請求可能已送達，訊息要提醒使用者先確認結果。
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') {
+      throw new ApiError(0, 'timeout', '本機伺服器回應逾時，請重新整理確認結果');
+    }
     throw new ApiError(0, 'network', '無法連線到本機伺服器，請確認伺服器仍在執行');
   }
   if (res.status === 204) return null;

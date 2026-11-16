@@ -46,3 +46,22 @@ test('pin button is disabled until a work package is chosen; errors are shown', 
   await userEvent.click(screen.getByRole('button', { name: '釘上布告欄' }));
   expect((await screen.findByRole('alert')).textContent).toBe('找不到該項目');
 });
+test('a slow activity response for an earlier choice does not overwrite the latest choice', async () => {
+  vi.mocked(searchWorkPackages).mockResolvedValue([
+    { id: 1, subject: '甲', project: 'P' }, { id: 2, subject: '乙', project: 'P' },
+  ]);
+  let resolveSlow;
+  vi.mocked(listActivities).mockImplementation(id => (id === 1
+    ? new Promise(resolve => { resolveSlow = resolve; })
+    : Promise.resolve([{ id: 20, name: 'FromB', default: false }])));
+  render(PinDialog, { onsubmit: vi.fn(), oncancel: vi.fn(), searchDelay: 0 });
+  await userEvent.type(screen.getByRole('searchbox'), 'x');
+  await userEvent.click(await screen.findByRole('button', { name: /#1 / }));
+  await userEvent.type(screen.getByRole('searchbox'), 'y');
+  await userEvent.click(await screen.findByRole('button', { name: /#2 / }));
+  await screen.findByRole('option', { name: 'FromB' });
+  resolveSlow([{ id: 10, name: 'FromA', default: false }]);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  expect(screen.queryByRole('option', { name: 'FromA' })).toBeNull();
+  expect(screen.getByRole('option', { name: 'FromB' })).toBeTruthy();
+});

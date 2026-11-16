@@ -5,9 +5,14 @@
 
   let { mode = 'create', workPackage, initial, onsubmit, oncancel } = $props();
 
+  // 表單欄位刻意只取 initial 掛載當下的快照（App 每次開啟都會重新掛載對話框）。
+  // svelte-ignore state_referenced_locally
   let date = $state(initial.date);
+  // svelte-ignore state_referenced_locally
   let hoursText = $state(initial.hours == null ? '' : String(initial.hours));
+  // svelte-ignore state_referenced_locally
   let activityId = $state(initial.activityId ?? null);
+  // svelte-ignore state_referenced_locally
   let comment = $state(initial.comment ?? '');
   let activities = $state(null);
   let activityError = $state('');
@@ -15,6 +20,7 @@
   let submitError = $state('');
   let pending = $state(false);
 
+  // svelte-ignore state_referenced_locally
   const originalActivity = initial.activityId == null
     ? null
     : { id: initial.activityId, name: initial.activityName ?? `#${initial.activityId}` };
@@ -41,6 +47,7 @@
 
   async function submit(event) {
     event.preventDefault();
+    if (pending) return;
     const parsed = parseHoursInput(hoursText);
     if (parsed.error) {
       hoursError = parsed.error;
