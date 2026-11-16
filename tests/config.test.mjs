@@ -5,11 +5,22 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { parseConfig, loadConfig } from '../server/config.mjs';
 
-test('demo defaults to loopback and has no token', () => {
+test('demo defaults to loopback, no token, and default paths', () => {
   assert.deepEqual(parseConfig({ mode: 'demo' }), {
     mode: 'demo', host: '127.0.0.1', port: 4173,
     baseUrl: null, apiToken: null,
+    dailyTargetHours: 8, dataDir: 'data', staticDir: 'web/dist',
   });
+});
+test('validates daily target and directories', () => {
+  assert.equal(parseConfig({ mode: 'demo', dailyTargetHours: 7.5 }).dailyTargetHours, 7.5);
+  for (const bad of [0, -1, 25, '8', NaN]) {
+    assert.throws(() => parseConfig({ mode: 'demo', dailyTargetHours: bad }),
+      { message: 'dailyTargetHours must be a number greater than 0 and at most 24' });
+  }
+  assert.equal(parseConfig({ mode: 'demo', dataDir: 'tmp/x', staticDir: 'dist' }).dataDir, 'tmp/x');
+  assert.throws(() => parseConfig({ mode: 'demo', dataDir: '' }), { message: 'dataDir must be a non-empty string' });
+  assert.throws(() => parseConfig({ mode: 'demo', staticDir: 3 }), { message: 'staticDir must be a non-empty string' });
 });
 test('live requires a token without echoing input', () => {
   assert.throws(() => parseConfig({ mode: 'live', baseUrl: 'http://example.test' }),
