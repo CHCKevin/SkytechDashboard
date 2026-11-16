@@ -63,3 +63,21 @@ test('a fetch timeout becomes a timeout ApiError and requests carry an abort sig
   await api.listQuests();
   expect(fetch.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
 });
+test('hall and user search calls use the right paths, methods and bodies', async () => {
+  const fetch = mockFetch(200, []);
+  await api.searchUsers('陳');
+  expect(fetch.mock.calls[0][0]).toBe(`/api/users/search?q=${encodeURIComponent('陳')}`);
+  expect(fetch.mock.calls[0][1].method).toBe('GET');
+  await api.getHall('2026-11-17');
+  expect(fetch.mock.calls[1][0]).toBe('/api/hall?date=2026-11-17');
+  expect(fetch.mock.calls[1][1].headers['X-Quest-Board']).toBeUndefined();
+  await api.addHallMember(18);
+  expect(fetch.mock.calls[2][0]).toBe('/api/hall/members');
+  expect(fetch.mock.calls[2][1].method).toBe('POST');
+  expect(fetch.mock.calls[2][1].headers['X-Quest-Board']).toBe('1');
+  expect(JSON.parse(fetch.mock.calls[2][1].body)).toEqual({ userId: 18 });
+  await api.removeHallMember(18);
+  expect(fetch.mock.calls[3][0]).toBe('/api/hall/members/18');
+  expect(fetch.mock.calls[3][1].method).toBe('DELETE');
+  expect(fetch.mock.calls[3][1].headers['X-Quest-Board']).toBe('1');
+});
