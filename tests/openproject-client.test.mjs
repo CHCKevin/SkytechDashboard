@@ -201,3 +201,89 @@ test('send maps auth, permission, missing and redirect like reads', async () => 
     });
   }
 });
+
+test('send success records the exact path and body of every request', async () => {
+  await withFake(() => ({ status: 201, body: { id: 1 } }), async fake => {
+    const client = clientFor(fake);
+    await client.send('POST', '/api/v3/time_entries', { a: 1 });
+    await client.send('POST', '/api/v3/time_entries/form', { b: 2 });
+    await client.send('PATCH', '/api/v3/time_entries/12', { c: 3 });
+    assert.deepEqual(fake.requests.map(({ method, path, body }) => ({ method, path, body })), [
+      { method: 'POST', path: '/api/v3/time_entries', body: { a: 1 } },
+      { method: 'POST', path: '/api/v3/time_entries/form', body: { b: 2 } },
+      { method: 'PATCH', path: '/api/v3/time_entries/12', body: { c: 3 } },
+    ]);
+  });
+});
+test('send rejects foreign origins as unsafe_link without contacting anything', async () => {
+  await withFake(() => ({ body: {} }), async fake => {
+    const client = clientFor(fake);
+    await rejectsWith(client.send('POST', '//evil.test/api/v3/time_entries', {}), 'unsafe_link');
+    await rejectsWith(client.send('POST', 'http://evil.test/api/v3/time_entries', {}), 'unsafe_link');
+    assert.equal(fake.requests.length, 0);
+  });
+});
+test('send rejects near-miss write targets as unsafe_write without contacting the server', async () => {
+  await withFake(() => ({ body: {} }), async fake => {
+    const client = clientFor(fake);
+    for (const [method, path] of [
+      ['POST', '/api/v3/time_entries/'], ['POST', '/api/v3/time_entries%2F1'], ['PATCH', '/api/v3/time_entries/abc'],
+      ['PATCH', '/api/v3/time_entries/١٢'], ['post', '/api/v3/time_entries'], ['POST', '/api/v3/time_entries?'],
+      ['POST', '/api/v3/time_entries#x'], ['PATCH', '/api/v3/time_entries/1/../../work_packages/1'],
+    ]) {
+      await rejectsWith(client.send(method, path, {}), 'unsafe_write');
+    }
+    // 路徑大小寫不同在 resolve 階段就因不在 /api/v3 底下而被擋，所以是 unsafe_link。
+    await rejectsWith(client.send('POST', '/API/v3/time_entries', {}), 'unsafe_link');
+    assert.equal(fake.requests.length, 0);
+  });
+});
+test('a traversal that normalises onto an allowed path is sent to the normalised path', async () => {
+  await withFake(() => ({ status: 201, body: {} }), async fake => {
+    await clientFor(fake).send('POST', '/api/v3/x/../time_entries', {});
+    assert.equal(fake.requests.length, 1);
+    assert.equal(fake.requests[0].path, '/api/v3/time_entries');
+  });
+});
+test('writes are never retried, including after a dropped connection', async () => {
+  for (const [status, code] of [[429, 'rate_limited'], [502, 'upstream_error'], [504, 'upstream_error']]) {
+    await withFake(() => ({ status }), async fake => {
+      await rejectsWith(clientFor(fake).send('POST', '/api/v3/time_entries', {}), code);
+      assert.equal(fake.requests.length, 1);
+    });
+  }
+  await withFake((url, req) => { req.socket.destroy(); return { status: 200, body: {}, delayMs: 300 }; }, async fake => {
+    await assert.rejects(clientFor(fake, { timeoutMs: 50 }).send('POST', '/api/v3/time_entries', {}),
+      error => error instanceof SourceError && ['network', 'timeout'].includes(error.code));
+    assert.equal(fake.requests.length, 1);
+  });
+});
+test('write redirects are not followed', async () => {
+  await withFake(() => ({ status: 302, headers: { Location: '/api/v3/time_entries/999' } }), async fake => {
+    await rejectsWith(clientFor(fake).send('POST', '/api/v3/time_entries', {}), 'unexpected_redirect');
+    assert.equal(fake.requests.length, 1);
+  });
+});
+test('a successful write with an unreadable body is write_unconfirmed', async () => {
+  await withFake(() => ({ status: 201, body: 'not json' }), async fake => {
+    await rejectsWith(clientFor(fake).send('POST', '/api/v3/time_entries', {}), 'write_unconfirmed');
+  });
+  await withFake(() => ({ status: 201, body: '{"a":', headers: { 'Content-Length': '100', Connection: 'close' } }), async fake => {
+    await rejectsWith(clientFor(fake).send('POST', '/api/v3/time_entries', {}), 'write_unconfirmed');
+    assert.equal(fake.requests.length, 1);
+  });
+});
+test('validation messages fall back to the top-level message and are bounded', async () => {
+  const validation = body => withFake(() => ({ status: 422, body }), async fake => {
+    await assert.rejects(clientFor(fake).send('POST', '/api/v3/time_entries', {}), error => {
+      validation.got = error;
+      return error.code === 'validation';
+    });
+  });
+  await validation({ message: 'Top.', _embedded: { errors: [{ message: 1 }, { foo: 'x' }, null] } });
+  assert.equal(validation.got.message, 'Top.');
+  await validation({ message: 'x'.repeat(600) });
+  assert.equal(validation.got.message, 'x'.repeat(500));
+  await validation({ message: 42, _embedded: { errors: [{ message: { a: 1 } }] } });
+  assert.equal(validation.got.message, 'OpenProject 拒絕了這筆資料');
+});

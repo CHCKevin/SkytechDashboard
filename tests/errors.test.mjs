@@ -18,3 +18,7 @@ test('maps source error codes to local HTTP statuses', () => {
   assert.equal(statusFor('network'), 502);
   assert.equal(statusFor('unsafe_write'), 500);
 });
+test('write_unconfirmed has a fixed message and the default status', () => {
+  assert.equal(new SourceError('write_unconfirmed').message, 'OpenProject 已收到請求，但結果無法確認，請重新讀取確認後再決定是否重送');
+  assert.equal(statusFor('write_unconfirmed'), 502);
+});

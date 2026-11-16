@@ -29,6 +29,7 @@ export function createClient({
   }
 
   async function request(url, { method = 'GET', body } = {}) {
+    const payload = body === undefined ? undefined : JSON.stringify(body);
     try {
       return await fetch(url, {
         method,
@@ -38,7 +39,7 @@ export function createClient({
           Authorization: authorization, Accept: 'application/hal+json',
           ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
         },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: payload,
       });
     } catch (error) {
       throw new SourceError(error?.name === 'TimeoutError' ? 'timeout' : 'network');
@@ -65,12 +66,15 @@ export function createClient({
   // 寫入不自動重試：連線中斷時結果不確定，重送可能重複建立工時。
   async function send(method, path, body) {
     const url = resolve(path);
-    const allowed = !url.search && WRITE_RULES.some(([m, pattern]) => m === method && pattern.test(url.pathname));
+    const allowed = url.href === url.origin + url.pathname && WRITE_RULES.some(([m, pattern]) => m === method && pattern.test(url.pathname));
     if (!allowed) throw new SourceError('unsafe_write');
     return limit(async () => {
       const res = await request(url, { method, body });
       if (res.status === 204) return null;
-      if (res.ok) return readJson(res);
+      if (res.ok) {
+        // 請求已被接受，結果讀不到時不能讓呼叫端當成一般失敗而重送。
+        try { return await res.json(); } catch { throw new SourceError('write_unconfirmed'); }
+      }
       if (res.status === 422) throw new SourceError('validation', await validationMessage(res));
       await res.body?.cancel();
       throw statusError(res.status);
@@ -136,7 +140,8 @@ async function validationMessage(res) {
   let body;
   try { body = await res.json(); } catch { return undefined; }
   const nested = Array.isArray(body?._embedded?.errors) ? body._embedded.errors.map(error => error?.message) : [];
-  const parts = (nested.length ? nested : [body?.message]).filter(text => typeof text === 'string' && text);
+  const texts = nested.filter(text => typeof text === 'string' && text);
+  const parts = texts.length ? texts : [body?.message].filter(text => typeof text === 'string' && text);
   return parts.join('；').slice(0, MAX_MESSAGE) || undefined;
 }
 

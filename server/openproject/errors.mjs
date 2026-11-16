@@ -13,6 +13,7 @@ const messages = {
   invalid_response: 'OpenProject 回應格式無法解讀',
   unsafe_link: 'OpenProject 連結指向設定以外的位置',
   unsafe_write: '不允許的 OpenProject 寫入操作',
+  write_unconfirmed: 'OpenProject 已收到請求，但結果無法確認，請重新讀取確認後再決定是否重送',
   pagination_loop: 'OpenProject 分頁連結重複',
   pagination_incomplete: 'OpenProject 分頁資料不完整',
 };
