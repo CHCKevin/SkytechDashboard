@@ -502,7 +502,7 @@ Expected: PASS
 curl -s https://api.github.com/repos/ACh-K/Cubic-11/git/trees/main?recursive=1 | grep -o '"path": "[^"]*\(woff2\|OFL[^"]*\|LICENSE[^"]*\)"'
 ```
 
-從列出的路徑下載 `Cubic_11.woff2` 與授權檔（以 `https://raw.githubusercontent.com/ACh-K/Cubic-11/main/<path>`），存成 `web/src/assets/fonts/Cubic_11.woff2` 與 `web/src/assets/fonts/OFL.txt`。確認授權檔內容為 SIL Open Font License。
+從列出的路徑下載 `Cubic_11.woff2` 與授權檔（以 `https://raw.githubusercontent.com/ACh-K/Cubic-11/main/<path>`），存成 `web/src/assets/fonts/Cubic_11.woff2` 與 `web/src/assets/fonts/OFL.txt`。確認授權檔內容為 SIL Open Font License。同時讀倉庫 README，找出字型的設計格線／建議字級（例如「12px 或其倍數」），在 Step 2 把 `--fs-1` 設為該值、`--fs-2` 設為兩倍。
 
 若倉庫沒有 woff2 或無法下載：改用 Zpix（`https://github.com/SolidZORO/zpix-pixel-font`），同樣先列出路徑再下載，檔名改為 `zpix.woff2`／`zpix.ttf`，並同步修改 Step 2 的 `@font-face`；Zpix 的授權條款也要一併保存並在 commit 中註明。
 
@@ -529,6 +529,9 @@ curl -s https://api.github.com/repos/ACh-K/Cubic-11/git/trees/main?recursive=1 |
   --seal: #c0392b;
   --leaf: #4a8a3a;
   --font: 'Cubic11', 'Microsoft JhengHei', monospace;
+  /* 點陣字只有在設計格線的整數倍才銳利；--fs-1 依 Step 1 讀到的建議字級設定，其他字級只能是它的整數倍。 */
+  --fs-1: 12px;
+  --fs-2: 24px;
 }
 
 * { box-sizing: border-box; }
@@ -537,7 +540,7 @@ body {
   background: var(--wall);
   color: var(--ink);
   font-family: var(--font);
-  font-size: 16px;
+  font-size: var(--fs-1);
   line-height: 1.5;
   -webkit-font-smoothing: none;
 }
@@ -547,8 +550,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* 頂部列 */
 .topbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; color: var(--parchment); text-shadow: 2px 2px 0 #000; margin-bottom: 16px; }
-.guild { font-size: 22px; margin: 0; font-weight: normal; }
-.date-nav { display: flex; gap: 8px; align-items: center; font-size: 18px; }
+.guild { font-size: var(--fs-2); margin: 0; font-weight: normal; }
+.date-nav { display: flex; gap: 8px; align-items: center; font-size: var(--fs-2); }
 
 /* 按鈕 */
 .btn { background: var(--brass); color: var(--ink); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 2px 12px; cursor: pointer; text-shadow: none; }
@@ -564,7 +567,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* 木板 */
 .board { background: repeating-linear-gradient(0deg, var(--wood) 0 10px, var(--wood-dark) 10px 12px); border: 6px solid var(--ink); box-shadow: inset 0 0 0 3px var(--wood-light); padding: 16px; }
-.board-title { color: var(--parchment); text-shadow: 2px 2px 0 var(--ink); font-size: 18px; font-weight: normal; margin: 0 0 12px; }
+.board-title { color: var(--parchment); text-shadow: 2px 2px 0 var(--ink); font-size: var(--fs-2); font-weight: normal; margin: 0 0 12px; }
 
 /* 任務單 */
 .notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-bottom: 18px; }
@@ -572,9 +575,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .note::before { content: ''; position: absolute; top: -8px; left: calc(50% - 5px); width: 10px; height: 10px; background: var(--seal); border: 2px solid var(--ink); }
 .note-main { display: flex; flex-direction: column; gap: 2px; width: 100%; height: 100%; padding: 12px 10px 8px; background: none; border: none; text-align: left; cursor: pointer; }
 .note-main:hover { background: var(--paper); }
-.note-id { font-size: 12px; opacity: 0.7; }
-.note-meta { font-size: 12px; opacity: 0.8; margin-top: auto; }
-.note-x { position: absolute; top: 2px; right: 4px; background: none; border: none; cursor: pointer; opacity: 0.5; font-size: 12px; }
+.note-id { font-size: var(--fs-1); opacity: 0.7; }
+.note-meta { font-size: var(--fs-1); opacity: 0.8; margin-top: auto; }
+.note-x { position: absolute; top: 2px; right: 4px; background: none; border: none; cursor: pointer; opacity: 0.5; font-size: var(--fs-1); }
 .note-x:hover { opacity: 1; color: var(--seal); }
 .note-add { background: transparent; border: 3px dashed var(--parchment); color: var(--parchment); box-shadow: none; cursor: pointer; text-shadow: 2px 2px 0 var(--ink); }
 .note-add::before { display: none; }
@@ -582,7 +585,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* 羊皮紙面板 */
 .parchment { background: var(--parchment); border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 12px; }
 .special { background: var(--parchment-dark); }
-.special h3 { margin: 0 0 6px; font-size: 16px; font-weight: normal; }
+.special h3 { margin: 0 0 6px; font-size: var(--fs-1); font-weight: normal; }
 
 /* 搜尋 */
 .search-input { width: 100%; background: var(--paper); border: 3px solid var(--ink); padding: 4px 8px; }
@@ -590,16 +593,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .suggestions button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 4px 8px; cursor: pointer; }
 .suggestions button:hover, .suggestions button:focus-visible { background: var(--brass); }
 .suggestions small { margin-left: 8px; opacity: 0.7; }
-.hint { font-size: 13px; margin: 4px 0 0; }
+.hint { font-size: var(--fs-1); margin: 4px 0 0; }
 .error { color: var(--seal); }
 
 /* 已接任務 */
 .entries { list-style: none; margin: 0; padding: 0; }
 .entry { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 6px 0; border-bottom: 2px dashed var(--wood-light); }
-.entry-meta { grid-column: 1 / -1; font-size: 12px; opacity: 0.8; }
-.entry-actions { grid-column: 1 / -1; font-size: 12px; }
+.entry-meta { grid-column: 1 / -1; font-size: var(--fs-1); opacity: 0.8; }
+.entry-actions { grid-column: 1 / -1; font-size: var(--fs-1); }
 .empty { opacity: 0.7; margin: 0 0 8px; }
-.total { display: flex; justify-content: space-between; margin-top: 10px; font-size: 18px; }
+.total { display: flex; justify-content: space-between; margin-top: 10px; font-size: var(--fs-2); }
 .bar { height: 14px; border: 3px solid var(--ink); background: var(--paper); margin-top: 6px; }
 .bar-fill { display: block; height: 100%; width: 0; background: var(--leaf); }
 .bar-fill.done { background: var(--brass); }
@@ -607,7 +610,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* 視窗 */
 .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
 .dialog { width: min(480px, 100%); border-width: 4px; box-shadow: 6px 6px 0 #000; }
-.dialog h2 { font-size: 18px; font-weight: normal; margin: 0 0 10px; }
+.dialog h2 { font-size: var(--fs-2); font-weight: normal; margin: 0 0 10px; }
 .field { display: grid; grid-template-columns: 64px 1fr; gap: 8px; align-items: center; margin: 8px 0; }
 .field input, .field select, .field textarea { background: var(--paper); border: 3px solid var(--ink); padding: 2px 6px; width: 100%; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -974,7 +977,7 @@ const activities = [{ id: 1, name: 'Management', default: true }, { id: 3, name:
 const base = (overrides = {}) => ({
   mode: 'create',
   workPackage: { id: 1234, subject: '前端登入頁改版' },
-  initial: { date: '2026-11-16', hours: null, activityId: 3, comment: '' },
+  initial: { date: '2026-11-16', hours: null, activityId: 3, activityName: 'Development', comment: '' },
   onsubmit: vi.fn(async () => {}),
   oncancel: vi.fn(),
   ...overrides,
@@ -1023,23 +1026,51 @@ test('submit errors keep the inputs and show the message; button disabled while 
   expect(screen.getByRole('alert').textContent).toBe('Hours can\'t be blank.');
   expect(screen.getByRole('textbox', { name: '時數' }).value).toBe('1.5');
 });
-test('edit mode prefills values and uses the update label', async () => {
-  const props = base({ mode: 'edit', initial: { date: '2026-11-15', hours: 2.5, activityId: null, comment: '舊備註' } });
+test('edit mode prefills values; unchanged form closes without a request', async () => {
+  const props = base({ mode: 'edit', initial: { date: '2026-11-15', hours: 0.33, activityId: null, activityName: null, comment: '舊備註' } });
   render(AcceptDialog, props);
   expect(screen.getByRole('dialog', { name: /修改任務紀錄/ })).toBeTruthy();
-  expect(screen.getByRole('textbox', { name: '時數' }).value).toBe('2.5');
+  expect(screen.getByRole('textbox', { name: '時數' }).value).toBe('0.33');
   expect(screen.getByRole('textbox', { name: '備註' }).value).toBe('舊備註');
   await screen.findByRole('combobox', { name: '活動' });
   await userEvent.click(screen.getByRole('button', { name: '更新紀錄' }));
-  expect(props.onsubmit).toHaveBeenCalledWith({ date: '2026-11-15', hours: 2.5, activityId: null, comment: '舊備註' });
+  expect(props.onsubmit).not.toHaveBeenCalled();
+  expect(props.oncancel).toHaveBeenCalled();
 });
-test('activity load failure still allows submitting without an activity', async () => {
+test('edit mode sends only the fields that changed', async () => {
+  // 0.33 是 PT20M 的顯示值；沒改時數就不能寫回，否則 20 分鐘會變成 19.8 分鐘。
+  const props = base({ mode: 'edit', initial: { date: '2026-11-15', hours: 0.33, activityId: 3, activityName: 'Development', comment: '舊備註' } });
+  render(AcceptDialog, props);
+  await screen.findByRole('combobox', { name: '活動' });
+  await userEvent.type(screen.getByRole('textbox', { name: '備註' }), '，補充');
+  await userEvent.click(screen.getByRole('button', { name: '更新紀錄' }));
+  expect(props.onsubmit).toHaveBeenCalledWith({ comment: '舊備註，補充' });
+});
+test('edit keeps the original activity when the activity list fails to load', async () => {
   vi.mocked(listActivities).mockRejectedValueOnce(new Error('OpenProject 連不上'));
-  const props = base({ initial: { date: '2026-11-16', hours: 1, activityId: 3, comment: '' } });
+  const props = base({ mode: 'edit', initial: { date: '2026-11-15', hours: 1, activityId: 3, activityName: 'Development', comment: '' } });
+  render(AcceptDialog, props);
+  expect(await screen.findByText(/活動類型讀取失敗：OpenProject 連不上/)).toBeTruthy();
+  expect(screen.getByText('Development（保留原設定）')).toBeTruthy();
+  await userEvent.clear(screen.getByRole('textbox', { name: '時數' }));
+  await userEvent.type(screen.getByRole('textbox', { name: '時數' }), '2');
+  await userEvent.click(screen.getByRole('button', { name: '更新紀錄' }));
+  expect(props.onsubmit).toHaveBeenCalledWith({ hours: 2 });
+});
+test('an activity missing from the list is still shown and kept', async () => {
+  vi.mocked(listActivities).mockResolvedValueOnce([{ id: 1, name: 'Management', default: true }]);
+  const props = base({ mode: 'edit', initial: { date: '2026-11-15', hours: 1, activityId: 9, activityName: 'Legacy', comment: '' } });
+  render(AcceptDialog, props);
+  const select = await screen.findByRole('combobox', { name: '活動' });
+  expect(select.selectedOptions[0].textContent).toBe('Legacy');
+});
+test('create still submits with the quest activity when the list fails to load', async () => {
+  vi.mocked(listActivities).mockRejectedValueOnce(new Error('OpenProject 連不上'));
+  const props = base({ initial: { date: '2026-11-16', hours: 1, activityId: 3, activityName: 'Development', comment: '' } });
   render(AcceptDialog, props);
   expect(await screen.findByText(/活動類型讀取失敗：OpenProject 連不上/)).toBeTruthy();
   await userEvent.click(screen.getByRole('button', { name: '接下任務！' }));
-  expect(props.onsubmit).toHaveBeenCalledWith({ date: '2026-11-16', hours: 1, activityId: null, comment: '' });
+  expect(props.onsubmit).toHaveBeenCalledWith({ date: '2026-11-16', hours: 1, activityId: 3, comment: '' });
 });
 test('cancel calls oncancel', async () => {
   const props = base();
@@ -1074,18 +1105,29 @@ Expected: FAIL
   let submitError = $state('');
   let pending = $state(false);
 
-  // 活動清單載入後才顯示下拉選單，確保預設值能被選中；不在清單內的活動改為「不指定」。
+  const originalActivity = initial.activityId == null
+    ? null
+    : { id: initial.activityId, name: initial.activityName ?? `#${initial.activityId}` };
+  // 原本的活動不在可選清單（或清單讀取失敗）時仍列出它，避免修改時被默默清掉。
+  const missingOriginal = $derived(
+    originalActivity !== null && activities !== null && !activities.some(activity => activity.id === originalActivity.id),
+  );
+
+  // 活動清單載入後才顯示下拉選單，確保預設值能被選中。讀取失敗時保留原本的活動。
   onMount(async () => {
     try {
-      const loaded = await listActivities(workPackage.id);
-      if (activityId !== null && !loaded.some(activity => activity.id === activityId)) activityId = null;
-      activities = loaded;
+      activities = await listActivities(workPackage.id);
     } catch (error) {
-      activityId = null;
       activities = [];
       activityError = `活動類型讀取失敗：${error.message}`;
     }
   });
+
+  // 修改模式只送出有變動的欄位：未修改的時數（例如 PT20M 顯示為 0.33）寫回會失真。
+  function changedFields(values) {
+    const before = { date: initial.date, hours: initial.hours, activityId: initial.activityId ?? null, comment: initial.comment ?? '' };
+    return Object.fromEntries(Object.entries(values).filter(([key, value]) => value !== before[key]));
+  }
 
   async function submit(event) {
     event.preventDefault();
@@ -1096,9 +1138,15 @@ Expected: FAIL
     }
     hoursError = '';
     submitError = '';
+    const values = { date, hours: parsed.value, activityId, comment };
+    const payload = mode === 'edit' ? changedFields(values) : values;
+    if (mode === 'edit' && !Object.keys(payload).length) {
+      oncancel();
+      return;
+    }
     pending = true;
     try {
-      await onsubmit({ date, hours: parsed.value, activityId, comment });
+      await onsubmit(payload);
     } catch (error) {
       submitError = error.message;
     } finally {
@@ -1133,6 +1181,9 @@ Expected: FAIL
       {:else}
         <select aria-labelledby="activity-label" bind:value={activityId}>
           <option value={null}>不指定</option>
+          {#if missingOriginal}
+            <option value={originalActivity.id}>{activityError ? `${originalActivity.name}（保留原設定）` : originalActivity.name}</option>
+          {/if}
           {#each activities as activity (activity.id)}
             <option value={activity.id}>{activity.name}</option>
           {/each}
@@ -1370,6 +1421,18 @@ test('an uncertain create reloads the day and warns instead of retrying', async 
   expect(api.listEntries.mock.calls.length).toBe(before + 1);
   expect(api.createEntry).toHaveBeenCalledTimes(1);
 });
+test('editing sends only changed fields and refreshes', async () => {
+  api.listEntries.mockResolvedValue([entry]);
+  api.updateEntry.mockResolvedValue({ ...entry, hours: 4 });
+  render(App);
+  await userEvent.click(await screen.findByRole('button', { name: /改/ }));
+  const dialog = await screen.findByRole('dialog');
+  await within(dialog).findByRole('combobox', { name: '活動' });
+  await userEvent.click(within(dialog).getByRole('button', { name: '4' }));
+  await userEvent.click(within(dialog).getByRole('button', { name: '更新紀錄' }));
+  expect(api.updateEntry).toHaveBeenCalledWith(7, { hours: 4 });
+  expect(screen.queryByRole('dialog')).toBeNull();
+});
 test('deleting asks for confirmation', async () => {
   api.listEntries.mockResolvedValue([entry]);
   api.deleteEntry.mockResolvedValue(null);
@@ -1447,15 +1510,15 @@ Expected: FAIL
     }
   }
 
-  function openCreate(workPackage, activityId) {
-    dialog = { mode: 'create', workPackage, initial: { date, hours: null, activityId, comment: '' } };
+  function openCreate(workPackage, activityId = null, activityName = null) {
+    dialog = { mode: 'create', workPackage, initial: { date, hours: null, activityId, activityName, comment: '' } };
   }
 
   function openEdit(entry) {
     dialog = {
       mode: 'edit', entryId: entry.id,
       workPackage: { id: entry.workPackageId, subject: entry.workPackageSubject },
-      initial: { date: entry.date, hours: entry.hours, activityId: entry.activityId, comment: entry.comment },
+      initial: { date: entry.date, hours: entry.hours, activityId: entry.activityId, activityName: entry.activityName, comment: entry.comment },
     };
   }
 
@@ -1472,7 +1535,8 @@ Expected: FAIL
       throw error;
     }
     dialog = null;
-    if (values.date !== date) date = values.date;
+    // 修改模式只帶有變動的欄位，values.date 可能不存在。
+    if (values.date !== undefined && values.date !== date) date = values.date;
     else await loadEntries(date);
   }
 
@@ -1508,10 +1572,10 @@ Expected: FAIL
   {/if}
   <main class="layout">
     <QuestBoard {quests}
-      onaccept={quest => openCreate({ id: quest.workPackageId, subject: quest.subject }, quest.activityId)}
+      onaccept={quest => openCreate({ id: quest.workPackageId, subject: quest.subject }, quest.activityId, quest.activityName)}
       onunpin={unpin}
       onpin={() => (pinning = true)}>
-      <SpecialQuest onselect={workPackage => openCreate(workPackage, null)} />
+      <SpecialQuest onselect={workPackage => openCreate(workPackage)} />
     </QuestBoard>
     <TodayLog {entries} {target} onedit={openEdit} ondelete={removeEntry} />
   </main>
@@ -1550,7 +1614,7 @@ Expected: `示例模式已啟動：http://127.0.0.1:4173/`
 - [ ] **Step 2: 以瀏覽器開啟 `http://127.0.0.1:4173/`**（使用 `run` 或 `claude-in-chrome` skill），逐項確認並截圖：
 
 1. 開發者工具 Console **沒有** CSP 違規訊息（`Refused to apply inline style`、`Refused to load the font` 等）。
-2. 字型為像素字型（中文字呈現點陣感）。
+2. 字型為像素字型，100% 縮放下筆畫邊緣銳利、沒有模糊；字級可讀（若太小，記錄下來請使用者決定是否整體改用兩倍字級）。
 3. 版面為木板＋羊皮紙；頂部顯示今天日期與「示例冒險者」；右側有 2 筆示例工時、合計 3.5 / 8h、進度條約 44%。
 4. 「＋ 釘上常駐任務」→ 搜尋 `2051` → 選擇 → 預設活動選 Management → 釘上；布告欄出現新任務卡。
 5. 點該任務卡 → 選 1h → 接下任務 → 視窗關閉、右側多一筆、合計 4.5。

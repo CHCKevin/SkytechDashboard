@@ -906,15 +906,36 @@ test('deleteEntry sends DELETE', async () => {
     assert.equal(fake.requests[0].path, '/api/v3/time_entries/2759');
   });
 });
-test('searchWorkPackages uses subjectOrId and puts an exact id match first', async () => {
-  await withSource(() => ({ body: collection([wpHal(1234, 'A'), wpHal(23, 'B')]) }), async (source, fake) => {
+test('searchWorkPackages uses subjectOrId and puts the exact id first, de-duplicated', async () => {
+  await withSource(url => (url.pathname === '/api/v3/work_packages/23'
+    ? { body: wpHal(23, 'B') }
+    : { body: collection([wpHal(1234, 'A'), wpHal(23, 'B')]) }), async (source, fake) => {
     assert.deepEqual(await source.searchWorkPackages('23'), [
       { id: 23, subject: 'B', project: 'Software Operations' },
       { id: 1234, subject: 'A', project: 'Software Operations' },
     ]);
-    const req = fake.requests[0];
-    assert.equal(req.search.get('pageSize'), '10');
-    assert.deepEqual(JSON.parse(req.search.get('filters')), [{ subjectOrId: { operator: '**', values: ['23'] } }]);
+    const search = fake.requests.find(req => req.path === '/api/v3/work_packages');
+    assert.equal(search.search.get('pageSize'), '10');
+    assert.deepEqual(JSON.parse(search.search.get('filters')), [{ subjectOrId: { operator: '**', values: ['23'] } }]);
+  });
+});
+test('an exact id missing from the search page is still found first', async () => {
+  // 實測：搜尋 "202" 時，名稱含 2026 等字樣的項目會把 #202 擠出第一頁。
+  await withSource(url => (url.pathname === '/api/v3/work_packages/202'
+    ? { body: wpHal(202, '支援任務') }
+    : { body: collection([wpHal(256, '2026 規劃'), wpHal(365, '2026 報表')]) }), async source => {
+    assert.deepEqual((await source.searchWorkPackages('202')).map(wp => wp.id), [202, 256, 365]);
+  });
+  await withSource(url => (url.pathname === '/api/v3/work_packages/99'
+    ? { status: 404, body: {} }
+    : { body: collection([wpHal(1990, 'Code review 99')]) }), async source => {
+    assert.deepEqual((await source.searchWorkPackages('99')).map(wp => wp.id), [1990]);
+  });
+});
+test('text searches skip the id lookup; empty searches skip everything', async () => {
+  await withSource(() => ({ body: collection([wpHal(5, '登入頁')]) }), async (source, fake) => {
+    await source.searchWorkPackages('登入');
+    assert.equal(fake.requests.length, 1);
   });
   await withSource(() => ({ body: collection([]) }), async (source, fake) => {
     assert.deepEqual(await source.searchWorkPackages(''), []);
@@ -986,17 +1007,21 @@ export function createTimeTrackingSource({ client }) {
 
     getWorkPackage,
 
+    // subjectOrId 也會比對名稱子字串，精確編號可能不在第一頁；純數字時另外直接查該編號並排在最前面。
     async searchWorkPackages(term) {
       if (!term) return [];
       const filters = encodeURIComponent(JSON.stringify([{ subjectOrId: { operator: '**', values: [term] } }]));
       const sortBy = encodeURIComponent('[["updatedAt","desc"]]');
-      const page = await client.getJson(`/api/v3/work_packages?pageSize=10&filters=${filters}&sortBy=${sortBy}`);
+      const [page, exact] = await Promise.all([
+        client.getJson(`/api/v3/work_packages?pageSize=10&filters=${filters}&sortBy=${sortBy}`),
+        /^d+$/.test(term) ? getWorkPackage(Number(term)).catch(ignoreMissing) : null,
+      ]);
       const items = page?._embedded?.elements;
       if (!Array.isArray(items)) throw new SourceError('invalid_response');
-      const results = items.map(wp => ({ id: wp.id, subject: wp.subject ?? '', project: wp._links?.project?.title ?? '' }));
-      const exact = results.findIndex(wp => String(wp.id) === term);
-      if (exact > 0) results.unshift(...results.splice(exact, 1));
-      return results;
+      const results = items
+        .map(wp => ({ id: wp.id, subject: wp.subject ?? '', project: wp._links?.project?.title ?? '' }))
+        .filter(wp => wp.id !== exact?.id);
+      return (exact ? [exact, ...results] : results).slice(0, 10);
     },
 
     async listActivities(workPackageId) {
@@ -1009,6 +1034,11 @@ export function createTimeTrackingSource({ client }) {
       return allowed.map(activity => ({ id: activity.id, name: activity.name ?? '', default: Boolean(activity.default) }));
     },
   };
+}
+
+function ignoreMissing(error) {
+  if (error?.code === 'not_found' || error?.code === 'forbidden') return null;
+  throw error;
 }
 
 function idFrom(href, pattern) {
@@ -1795,30 +1825,37 @@ function assertSameSiteWrite(req, port) {
   }
 }
 
-async function readJsonBody(req) {
+// 用 data/end 讀完整個本體（超過上限的部分直接丟棄）再回應：
+// 在 for await 迴圈中丟錯會銷毀請求串流與連線，用戶端只會看到連線重設，收不到 413。
+function readJsonBody(req) {
   if (!(req.headers['content-type'] ?? '').toLowerCase().startsWith('application/json')) {
-    throw new HttpError(415, 'unsupported_media_type', '請求內容必須是 JSON');
+    return Promise.reject(new HttpError(415, 'unsupported_media_type', '請求內容必須是 JSON'));
   }
-  const chunks = [];
-  let size = 0;
-  for await (const chunk of req) {
-    size += chunk.length;
-    if (size > MAX_BODY) throw new HttpError(413, 'payload_too_large', '請求內容過大');
-    chunks.push(chunk);
-  }
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  } catch {
-    throw new HttpError(400, 'invalid_json', '請求內容不是有效的 JSON');
-  }
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', chunk => {
+      size += chunk.length;
+      if (size <= MAX_BODY) chunks.push(chunk);
+    });
+    req.on('end', () => {
+      if (size > MAX_BODY) return reject(new HttpError(413, 'payload_too_large', '請求內容過大'));
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+      } catch {
+        reject(new HttpError(400, 'invalid_json', '請求內容不是有效的 JSON'));
+      }
+    });
+    req.on('error', reject);
+  });
 }
 
 function handleError(req, res, error) {
   if (res.headersSent) return res.destroy();
   if (error instanceof HttpError) {
     for (const [name, value] of Object.entries(error.headers)) res.setHeader(name, value);
-    // 413 時請求本體可能還沒讀完，回應後關閉連線。
-    if (error.status === 413) res.setHeader('Connection', 'close');
+    // 415 時沒有讀取請求本體，回應後關閉連線，避免殘留本體干擾同一連線的下一個請求。
+    if (error.status === 415) res.setHeader('Connection', 'close');
     return sendError(req, res, error.status, { code: error.code, message: error.message });
   }
   if (error instanceof InputError) {
@@ -1860,7 +1897,7 @@ function sendError(req, res, status, error) {
 - [ ] **Step 4: 執行確認通過**
 
 Run: `node --test tests/http.test.mjs`
-Expected: PASS。若 413 測試因用戶端在伺服器關閉連線時仍在寫入而得到 `EPIPE`／`ECONNRESET`，把測試改為「狀態為 413，或請求以連線重設結束」——不要放寬伺服器端檢查。
+Expected: PASS（413 測試必須真的收到 413 狀態，不可改成接受連線重設）。
 
 - [ ] **Step 5: Commit**（`[FEATURE]: Serve Time Tracking JSON API With CSRF Guard`，Change：`server/http.mjs`、`tests/http.test.mjs`）
 

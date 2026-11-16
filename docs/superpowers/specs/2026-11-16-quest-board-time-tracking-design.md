@@ -101,10 +101,10 @@ Node 伺服器（127.0.0.1）
 - 查工時：`GET /api/v3/time_entries`，篩選 `user = me`、`spentOn = 日期`。
 - 寫入工時：本體 `{ spentOn, hours, comment: { raw }, _links: { entity: { href: /api/v3/work_packages/{id} }, activity: { href | null } } }`；`entity` 為必填，`activity` 可為 null。
 - 時數：送出 `PT{十進位}H`（例 `PT2.5H`，實測可接受）；讀取時解析 `P[nD]T[nH][nM][nS]`（OpenProject 回傳 `PT2H30M`、`PT45M` 形式）。
-- 搜尋：`GET /api/v3/work_packages`，篩選 `subjectOrId` 運算子 `**`，最多 10 筆。
+- 搜尋：`GET /api/v3/work_packages`，篩選 `subjectOrId` 運算子 `**`、依 `updatedAt` 由新到舊，最多 10 筆。此篩選也比對名稱子字串（實測搜尋 `202` 時 #202 排在第 4 筆），因此純數字搜尋時另外直接查該編號，存在就排在第一筆並去除重複。
 - 活動類型：`POST /api/v3/time_entries/form`（不建立資料）帶入 `entity`，取 `_embedded.schema.activity._embedded.allowedValues`。
 - work package 存在檢查：OpenProject 對不存在的 `entity` 會回 500 而非 422，因此新增工時與釘上任務前，先 `GET /api/v3/work_packages/{id}`，404 時回報「找不到 work package」。
-- 以上皆於 2026-11-16 以使用者的 OpenProject（唯讀 GET 與不建立資料的 `/form`）實測確認。
+- 以上（含 `time_entries` 的 `sortBy=[["id","asc"]]` 與 `work_packages` 的 `sortBy=[["updatedAt","desc"]]`）皆於 2026-11-16 以使用者的 OpenProject（唯讀 GET 與不建立資料的 `/form`）實測確認。
 
 ## 5. 常駐任務儲存
 
@@ -128,6 +128,7 @@ Node 伺服器（127.0.0.1）
 - **常駐任務卡**：顯示編號、名稱、預設活動。點卡片開啟接任務視窗；點 ✕ 撕下（從清單移除，需確認）；「＋ 釘上常駐任務」開啟搜尋並選擇預設活動。
 - **特別任務**：輸入編號或名稱，自動列出建議（輸入停頓 300ms 後搜尋）；選定後開啟接任務視窗，不加入常駐清單。
 - **本日已接任務**：所選日期的工時清單，每筆可修改（開啟預填的接任務視窗）或刪除（需確認）；底部顯示合計與 `合計 / dailyTargetHours` 進度條。
+- **修改只送出變動欄位**：修改模式只送出與原值不同的欄位；完全沒改就直接關閉、不發請求（避免把 PT20M 顯示的 0.33h 寫回成 19.8 分鐘）。活動清單讀取失敗或原活動不在清單內時，保留並列出原活動，不會被清空。
 - **接任務視窗**：日期（預設為所選日期）、時數（快速按鈕 0.5／1／2／4 與自由輸入）、活動（預設為任務卡設定值）、備註（可空）。送出成功後關閉並重新讀取清單；失敗時保留輸入並在視窗內顯示錯誤。送出期間按鈕停用，避免重複送出。
 
 ## 7. 安全
