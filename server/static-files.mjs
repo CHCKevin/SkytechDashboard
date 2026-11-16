@@ -25,10 +25,10 @@ export async function scanStaticFiles(distDir) {
     const type = types[extname(entry.name).toLowerCase()];
     if (!type) continue;
     const path = join(entry.parentPath, entry.name);
-    const url = `/${relative(distDir, path).split(sep).join('/')}`;
+    const url = `/${relative(distDir, path).split(sep).map(encodeURIComponent).join('/')}`;
     files[url] = { path, type };
   }
-  if (!files['/index.html']) throw new Error(`前端產物缺少 index.html，請先執行 npm run build`);
+  if (!files['/index.html']) throw new Error('前端產物缺少 index.html，請先執行 npm run build');
   files['/'] = files['/index.html'];
   return files;
 }

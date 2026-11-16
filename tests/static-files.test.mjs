@@ -30,6 +30,13 @@ test('maps every known file under dist to a URL, with / for index.html', async (
     assert.equal(files['/assets/index-abc.js'].path, join(dir, 'assets', 'index-abc.js'));
   });
 });
+test('names with spaces or non-ASCII match the percent-encoded URL', async () => {
+  await withDist({ 'index.html': '', 'assets/a b.js': '', 'assets/字.css': '' }, async dir => {
+    const files = await scanStaticFiles(dir);
+    assert.equal(files['/assets/a%20b.js'].path, join(dir, 'assets', 'a b.js'));
+    assert.ok(files[`/assets/${encodeURIComponent('字')}.css`]);
+  });
+});
 test('missing dist or index.html explains how to build', async () => {
   await assert.rejects(scanStaticFiles(join(tmpdir(), 'no-such-dist-xyz')), { message: /npm run build/ });
   await withDist({ 'assets/a.js': '' }, async dir => {

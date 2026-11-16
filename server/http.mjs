@@ -7,7 +7,7 @@ import { InputError, parseDate, parseEntryInput, parsePathId, parseQuestInput, p
 // Vite 產物沒有 inline script 與 import map，因此用固定 CSP。
 export const CSP = "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 const MAX_BODY = 16 * 1024;
-const baseHeaders = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': CSP };
+const baseHeaders = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': CSP, 'Cross-Origin-Resource-Policy': 'same-origin' };
 
 class HttpError extends Error {
   constructor(status, code, message, headers = {}) {
@@ -83,6 +83,10 @@ async function route(req, res, table, staticFiles) {
   const url = new URL(req.url, 'http://127.0.0.1');
 
   if (url.pathname.startsWith('/api/')) {
+    // 縱深防禦：瀏覽器明確標示為跨站的請求（含 GET）一律拒絕。
+    if (req.headers['sec-fetch-site']?.toLowerCase() === 'cross-site') {
+      throw new HttpError(403, 'csrf_rejected', '拒絕跨站請求');
+    }
     const candidates = table.filter(([, pattern]) => pattern.test(url.pathname));
     if (!candidates.length) throw new HttpError(404, 'not_found', '找不到資源');
     const found = candidates.find(([method]) => method === req.method);
@@ -105,7 +109,15 @@ async function route(req, res, table, staticFiles) {
   // 白名單以正規化後的完整路徑比對，不組合檔案路徑，因此不存在目錄穿越。
   if (!Object.hasOwn(staticFiles, url.pathname)) throw new HttpError(404, 'not_found', '找不到資源');
   const file = staticFiles[url.pathname];
-  return send(req, res, 200, file.type, await readFile(file.path));
+  let content;
+  try {
+    content = await readFile(file.path);
+  } catch (error) {
+    // 啟動後檔案被刪除：當作不存在，而不是 500。
+    if (error?.code === 'ENOENT') throw new HttpError(404, 'not_found', '找不到資源');
+    throw error;
+  }
+  return send(req, res, 200, file.type, content);
 }
 
 // CSRF：跨站表單無法加自訂標頭；若瀏覽器帶 Origin，必須是本服務自己的位址。
@@ -120,7 +132,7 @@ function assertSameSiteWrite(req, port) {
 // 用 data/end 讀完整個本體（超過上限的部分直接丟棄）再回應：
 // 在 for await 迴圈中丟錯會銷毀請求串流與連線，用戶端只會看到連線重設，收不到 413。
 function readJsonBody(req) {
-  if (!(req.headers['content-type'] ?? '').toLowerCase().startsWith('application/json')) {
+  if (!/^application\/json\s*(;|$)/i.test(req.headers['content-type'] ?? '')) {
     return Promise.reject(new HttpError(415, 'unsupported_media_type', '請求內容必須是 JSON'));
   }
   return new Promise((resolve, reject) => {
@@ -143,6 +155,9 @@ function readJsonBody(req) {
 }
 
 function handleError(req, res, error) {
+  // 用戶端已中斷（例如本體傳到一半就斷線）：沒有人可回應，也不必記錄。
+  // （讀完本體後 req 也會自動 destroyed，所以要搭配 req.complete 判斷是否為中斷。）
+  if ((req.destroyed && !req.complete) || res.destroyed || res.writableEnded) return;
   if (res.headersSent) return res.destroy();
   if (error instanceof HttpError) {
     for (const [name, value] of Object.entries(error.headers)) res.setHeader(name, value);
@@ -154,7 +169,10 @@ function handleError(req, res, error) {
     return sendError(req, res, 400, { code: error.code, message: error.message, field: error.field });
   }
   if (error instanceof SourceError) return sendError(req, res, statusFor(error.code), errorInfo(error));
-  if (error instanceof QuestStoreError) return sendError(req, res, 500, { code: error.code, message: error.message });
+  if (error instanceof QuestStoreError) {
+    console.error('Quest store error:', error.code);
+    return sendError(req, res, 500, { code: error.code, message: error.message });
+  }
   // 只記錄白名單欄位，不記錄訊息或堆疊：來源錯誤可能含 token 或來源回應。
   console.error('Request failed:', req.method, safePathname(req.url), error?.name ?? 'Error');
   return sendError(req, res, 500, errorInfo(error));
