@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { listenFetchable } from './ports.mjs';
 
 // 本機假 OpenProject：routes(url, req) 回傳 { status, body, headers, delayMs }，並記錄每個請求。
 export async function startFake(routes) {
@@ -30,7 +31,7 @@ export async function startFake(routes) {
       active -= 1;
     }
   });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  await listenFetchable(server);
   return {
     baseUrl: `http://127.0.0.1:${server.address().port}`,
     requests,

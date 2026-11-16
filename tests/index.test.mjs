@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:net';
+import { listenFetchable } from './support/ports.mjs';
 
 const entry = fileURLToPath(new URL('../server/index.mjs', import.meta.url));
 
@@ -17,15 +18,12 @@ function start(args) {
   });
 }
 
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const probe = createServer();
-    probe.once('error', reject);
-    probe.listen(0, '127.0.0.1', () => {
-      const { port } = probe.address();
-      probe.close(() => resolve(port));
-    });
-  });
+// 測試以 fetch 連線，因此要避開 fetch 封鎖的埠號。
+async function freePort() {
+  const probe = createServer();
+  const port = await listenFetchable(probe);
+  await new Promise(resolve => probe.close(resolve));
+  return port;
 }
 
 // 以暫存目錄當 staticDir 與 dataDir 啟動服務，執行 check 後關閉；回傳輸出供機密檢查。
