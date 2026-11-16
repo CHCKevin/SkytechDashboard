@@ -142,3 +142,62 @@ test('a connection dropped while reading the body is a network error', async () 
     await rejectsWith(clientFor(fake).getJson('/api/v3'), 'network');
   });
 });
+
+test('send writes JSON only to time entry paths', async () => {
+  await withFake((url, req, body) => ({ status: 201, body: { id: 9, echo: body } }), async fake => {
+    const client = clientFor(fake);
+    assert.deepEqual(await client.send('POST', '/api/v3/time_entries', { a: 1 }), { id: 9, echo: { a: 1 } });
+    const [req] = fake.requests;
+    assert.equal(req.method, 'POST');
+    assert.equal(req.headers['content-type'], 'application/json');
+    assert.equal(req.headers.authorization, `Basic ${Buffer.from(`apikey:${TOKEN}`).toString('base64')}`);
+    await client.send('POST', '/api/v3/time_entries/form', {});
+    await client.send('PATCH', '/api/v3/time_entries/12', {});
+    assert.equal(fake.requests.length, 3);
+  });
+});
+test('send refuses any other write target without contacting the server', async () => {
+  await withFake(() => ({ body: {} }), async fake => {
+    const client = clientFor(fake);
+    for (const [method, path] of [
+      ['POST', '/api/v3/work_packages'], ['DELETE', '/api/v3/time_entries'], ['PATCH', '/api/v3/time_entries/form'],
+      ['PUT', '/api/v3/time_entries/1'], ['GET', '/api/v3/time_entries/1'], ['POST', '/api/v3/time_entries?x=1'],
+      ['DELETE', '/api/v3/time_entries/1/x'], ['POST', '/api/v3/../v3/users'],
+    ]) {
+      await rejectsWith(client.send(method, path, {}), 'unsafe_write');
+    }
+    assert.equal(fake.requests.length, 0);
+  });
+});
+test('send returns null for 204 and never retries', async () => {
+  await withFake(() => ({ status: 204 }), async fake => {
+    assert.equal(await clientFor(fake).send('DELETE', '/api/v3/time_entries/5'), null);
+    assert.equal(fake.requests[0].body, null);
+  });
+  await withFake(() => ({ status: 503 }), async fake => {
+    await rejectsWith(clientFor(fake).send('POST', '/api/v3/time_entries', {}), 'upstream_error');
+    assert.equal(fake.requests.length, 1);
+  });
+});
+test('send turns 422 into a validation error with only OpenProject messages', async () => {
+  await withFake(() => ({ status: 422, body: { _type: 'Error', message: 'Hours can\'t be blank.', secret: TOKEN } }), async fake => {
+    await assert.rejects(clientFor(fake).send('POST', '/api/v3/time_entries', {}),
+      error => error.code === 'validation' && error.message === 'Hours can\'t be blank.');
+  });
+  await withFake(() => ({ status: 422, body: { _type: 'Error', errorIdentifier: 'urn:...:MultipleErrors', message: 'Multiple field constraints have been violated.',
+    _embedded: { errors: [{ message: 'Date can\'t be blank.' }, { message: 'Hours can\'t be blank.' }] } } }), async fake => {
+    await assert.rejects(clientFor(fake).send('POST', '/api/v3/time_entries', {}),
+      error => error.code === 'validation' && error.message === 'Date can\'t be blank.；Hours can\'t be blank.');
+  });
+  await withFake(() => ({ status: 422, body: 'not json' }), async fake => {
+    await assert.rejects(clientFor(fake).send('POST', '/api/v3/time_entries', {}),
+      error => error.code === 'validation' && error.message === 'OpenProject 拒絕了這筆資料');
+  });
+});
+test('send maps auth, permission, missing and redirect like reads', async () => {
+  for (const [status, code] of [[401, 'unauthorized'], [403, 'forbidden'], [404, 'not_found'], [302, 'unexpected_redirect']]) {
+    await withFake(() => ({ status, body: {} }), async fake => {
+      await rejectsWith(clientFor(fake).send('PATCH', '/api/v3/time_entries/1', {}), code);
+    });
+  }
+});
