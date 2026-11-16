@@ -64,6 +64,7 @@
   - `subjectOrId` 搜尋也會比對名稱子字串，所以純數字搜尋會另外精確查詢該編號。
   - 對不存在的 work package，`/time_entries/form` 會回 500，所以寫入前會先用 GET 確認。
   - 活動類型依專案而不同，而且可以不指定。
+- **尚未在真實環境驗證：OpenProject 拒絕寫入（422）時的訊息轉傳**，目前只用假伺服器測過；要實測需對正式環境送出預期被拒的寫入，須先經使用者同意。
 - 這台 Windows 的臨時埠號可能落在 fetch 封鎖的埠號上，測試伺服器已用 `tests/support/ports.mjs` 避開。
 - 用 `npm run demo` 在背景啟動時，停止 npm 外層行程不一定會結束 node 子行程；遇到 `EADDRINUSE` 時，先確認佔用 4173 的行程。
 

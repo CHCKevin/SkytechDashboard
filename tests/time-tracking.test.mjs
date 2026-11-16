@@ -153,3 +153,15 @@ test('listActivities reads allowed values from the time entry form', async () =>
     await assert.rejects(source.listActivities(202), error => error.code === 'invalid_response');
   });
 });
+test('createEntry keeps definite OpenProject rejections as they are, not write_unconfirmed', async () => {
+  // 只有「已送達後無法解讀」才是不確定；OpenProject 明確拒絕時必須保留原本的錯誤代碼，前端才會讓使用者修正後重送。
+  for (const [status, body, code] of [
+    [422, { _type: 'Error', message: 'Hours can\'t be blank.' }, 'validation'],
+    [403, {}, 'forbidden'],
+  ]) {
+    await withSource((url, req) => (req.method === 'GET' ? { body: wpHal(202) } : { status, body }), async source => {
+      await assert.rejects(source.createEntry({ workPackageId: 202, date: '2026-11-16', hours: 1, activityId: null, comment: '' }),
+        error => error.code === code);
+    });
+  }
+});

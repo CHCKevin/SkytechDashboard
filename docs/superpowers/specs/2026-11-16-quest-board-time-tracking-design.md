@@ -135,7 +135,8 @@ Node 伺服器（127.0.0.1）
 
 - token 僅存在 Node 伺服器記憶體與 `config/local.json`；不回傳給瀏覽器、不寫入 log。log 只記錄方法、路徑與錯誤名稱。
 - 非 GET／HEAD 請求必須同時滿足：帶有 `X-Quest-Board: 1`；若有 `Origin` 標頭，必須等於 `http://127.0.0.1:{port}` 或 `http://localhost:{port}`；`Content-Type` 為 `application/json`（DELETE 無本體時免）；本體不超過 16KB。否則回應 403 或 415／413。
-- 沿用 Host 檢查（防 DNS rebinding）與 CSP。
+- 所有 `/api` 請求若帶 `Sec-Fetch-Site: cross-site` 一律 403（含 GET，防跨站觸發讀取）；所有回應帶 `Cross-Origin-Resource-Policy: same-origin`，且不輸出任何 CORS 標頭。
+- 沿用 Host 檢查（防 DNS rebinding）與 CSP；`Content-Type` 僅接受 `application/json`（可帶參數）。
 - OpenProject client 寫入僅允許第 3.1 節列出的工時路徑，任何其他寫入路徑一律拒絕。
 
 ## 8. 錯誤處理
@@ -149,7 +150,16 @@ Node 伺服器（127.0.0.1）
 | OpenProject 驗證失敗（422） | 422，`validation`，只附 OpenProject 的 `message` 字串 | 在接任務視窗內顯示該訊息 |
 | 本機輸入驗證失敗 | 400，指出欄位 | 在對應欄位顯示 |
 
-寫入（POST）遇到連線中斷等結果不確定的情況時不重試；前端提示「結果不確定」並重新讀取當日清單，讓使用者確認是否已建立，避免重複記錄。
+寫入（POST）遇到結果不確定的情況時不重試；前端提示「結果不確定」並重新讀取當日清單，讓使用者確認是否已建立，避免重複記錄。結果不確定的錯誤代碼：
+- `network`、`timeout`：連線中斷或逾時（前端請求本身也有 45 秒逾時）。
+- `write_unconfirmed`：OpenProject 已回 2xx，但回應無法讀取或解讀（client 讀取失敗，或 `createEntry` 轉換回應失敗）。
+- `upstream_error`：OpenProject 或其前端代理回 5xx。
+
+OpenProject 明確拒絕（422 `validation`、403、404）不屬於不確定，維持原錯誤代碼，讓使用者修正後重送。刪除失敗時也會重新讀取清單。
+
+讀取狀態：切換日期時先清空清單並顯示「讀取中…」；讀取失敗時清單保持空白並顯示錯誤，避免在新日期下顯示舊日期的工時。
+
+**尚未在真實環境驗證**：OpenProject 422 訊息轉傳只用假伺服器（依 OpenProject 文件的錯誤格式）測過。要實測，需要對正式環境送出一筆預期會被拒絕的寫入，必須先取得使用者同意。
 
 ## 9. 測試與驗證
 

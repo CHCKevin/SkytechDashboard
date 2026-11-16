@@ -41,7 +41,7 @@
 
 **結果：第一階段完成，待合併到 develop。**
 
-- 測試：後端 node --test 84 個、前端 Vitest 52 個，全數通過；`npm run build` 無警告。
+- 測試：後端 node --test 85 個、前端 Vitest 52 個，全數通過；`npm run build` 無警告。開發代理（`npm run dev:web`）也以同一套 12 項瀏覽器驗證確認可用。
 - 驗證：
   - 示例模式正式產物在 CSP 下的瀏覽器驗證：12/12，沒有 CSP 違規或主控台錯誤；總審查修正後重跑一次，同樣 12/12。
   - 真實 OpenProject 唯讀驗證一致。
