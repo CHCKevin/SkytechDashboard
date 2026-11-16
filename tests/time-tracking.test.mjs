@@ -220,8 +220,9 @@ test('listEntriesForUsers with no users does not call OpenProject', async () => 
     assert.equal(fake.requests.length, 0);
   });
 });
-test('listEntriesForUsers rejects an entry without a user link', async () => {
-  await withSource(() => ({ body: collection([entryHal()]) }), async source => {
-    await assert.rejects(source.listEntriesForUsers('2026-11-13', [18]), { code: 'invalid_response' });
+test('listEntriesForUsers skips an entry without a readable user instead of failing the whole hall', async () => {
+  await withSource(() => ({ body: collection([entryHal(), withUser(18, { id: 2761 })]) }), async source => {
+    const entries = await source.listEntriesForUsers('2026-11-13', [18]);
+    assert.deepEqual(entries.map(entry => [entry.userId, entry.id]), [[18, 2761]]);
   });
 });

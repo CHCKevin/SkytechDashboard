@@ -12,6 +12,12 @@
   let me = $state(null);
   let banner = $state('');
 
+  // 橫幅屬於產生它的頁籤，換頁籤時不帶過去。
+  function switchTab(next) {
+    if (next !== tab) banner = '';
+    tab = next;
+  }
+
   onMount(async () => {
     try {
       me = await api.getMe();
@@ -22,7 +28,7 @@
 </script>
 
 <div class="app">
-  <TopBar {date} {me} {tab} onchange={day => (date = day)} ontab={next => (tab = next)} />
+  <TopBar {date} {me} {tab} onchange={day => (date = day)} ontab={switchTab} />
   {#if banner}
     <p class="banner" role="alert">{banner} <button class="link" onclick={() => (banner = '')}>關閉</button></p>
   {/if}

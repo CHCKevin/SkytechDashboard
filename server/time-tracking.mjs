@@ -95,10 +95,10 @@ export function createTimeTrackingSource({ client }) {
         { user: { operator: '=', values: userIds.map(String) } }, { spentOn: { operator: '=d', values: [date] } },
       ]);
       const elements = await client.getAll('/api/v3/time_entries', { filters, sortBy: '[["id","asc"]]' });
-      return elements.map(hal => {
+      // 看不出屬於誰的工時（例如使用者已刪除）只略過該筆，不讓整個大廳讀取失敗。
+      return elements.flatMap(hal => {
         const userId = idFrom(hal?._links?.user?.href, /^\/api\/v3\/users\/(\d+)$/);
-        if (userId === null) throw new SourceError('invalid_response');
-        return { userId, ...toEntry(hal) };
+        return userId === null ? [] : [{ userId, ...toEntry(hal) }];
       });
     },
   };

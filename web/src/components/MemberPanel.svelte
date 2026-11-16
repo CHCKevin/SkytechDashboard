@@ -1,16 +1,16 @@
 <script>
   import { formatDay } from '../lib/dates.js';
   import { shortName } from '../lib/names.js';
+  import { HALL_CAPACITY } from '../lib/seats.js';
   import { STATUS_LABELS, spriteFor } from '../lib/sprite.js';
   import PixelArt from './PixelArt.svelte';
 
   // 大廳右側面板：沒選人時是成員名單，選了人就是他當日的工時（唯讀）。
-  const CAPACITY = 16;
   let {
     members, selected = null, date, loading = false, loadError = '', refreshError = '', updatedAt = '',
     onselect, onback, onrecruit, onremove, onrefresh,
   } = $props();
-  const full = $derived(members.length >= CAPACITY);
+  const full = $derived(members.length >= HALL_CAPACITY);
 </script>
 
 <section aria-labelledby="hall-panel-title">
@@ -46,7 +46,7 @@
       {@render footer()}
     </div>
   {:else}
-    <h2 id="hall-panel-title" class="board-title">🍺 公會成員 {members.length} / {CAPACITY}</h2>
+    <h2 id="hall-panel-title" class="board-title">🍺 公會成員 {members.length} / {HALL_CAPACITY}</h2>
     <div class="parchment">
       {#if loading}
         <p class="empty">讀取中…</p>

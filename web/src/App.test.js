@@ -169,3 +169,10 @@ test('both tabs share the selected day', async () => {
   expect(await screen.findByText('前端登入頁改版')).toBeTruthy();
   expect(api.listEntries).toHaveBeenLastCalledWith('2026-11-15');
 });
+test('a banner from one tab does not follow you to the other tab', async () => {
+  api.listQuests.mockRejectedValue(new api.ApiError(502, 'network', '無法連線到 OpenProject'));
+  render(App);
+  expect(await screen.findByRole('alert')).toBeTruthy();
+  await userEvent.click(screen.getByRole('tab', { name: '公會大廳' }));
+  expect(screen.queryByRole('alert')).toBeNull();
+});

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { SEAT_IDS, assignSeats } from './seats.js';
+import { HALL_CAPACITY, SEAT_IDS, assignSeats } from './seats.js';
 
 let nextId = 1;
 const make = (status, count = 1) => Array.from({ length: count }, () => ({ userId: nextId++, status }));
@@ -61,4 +61,8 @@ test('members beyond the 16 seats are left out', () => {
   const seats = assignSeats(members);
   expect(Object.keys(seats)).toHaveLength(16);
   expect(seatOf(seats, members[17])).toBeUndefined();
+});
+test('the hall capacity equals the number of seats', () => {
+  expect(HALL_CAPACITY).toBe(16);
+  expect(HALL_CAPACITY).toBe(SEAT_IDS.length);
 });

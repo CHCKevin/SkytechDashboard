@@ -12,6 +12,9 @@ const ORDER = ['resting', 'working', 'idle'];
 export const SEAT_IDS = Object.entries(ZONES).flatMap(([zone, count]) =>
   Array.from({ length: count }, (_, index) => `${zone}-${index + 1}`));
 
+// 成員上限等於位子數，所以每位成員一定有位子；伺服器的 HALL_CAPACITY 必須與此相同。
+export const HALL_CAPACITY = SEAT_IDS.length;
+
 // 回傳 { 位子編號: 成員 }。純函式：輸入相同時輸出相同，資料沒變時角色不會換位子。
 export function assignSeats(members) {
   const used = { bar: 0, desk: 0, sofa: 0 };

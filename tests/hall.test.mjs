@@ -89,3 +89,17 @@ test('concurrent adds are serialized and leave no temp files', async () => {
     assert.deepEqual(await readdir(dir), ['hall.json']);
   });
 });
+test('a file with malformed or duplicate members is corrupt', async () => {
+  await withDir(async dir => {
+    const path = join(dir, 'hall.json');
+    for (const content of ['[null]', '[{}]', '[{"userId":"1","name":"x"}]', '[{"userId":1}]', '[{"userId":0,"name":"x"}]',
+      '[{"userId":1,"name":"a"},{"userId":1,"name":"b"}]']) {
+      await writeFile(path, content);
+      const store = createHallStore(path);
+      await assert.rejects(store.list(), HallStoreError, content);
+      await assert.rejects(store.add(member(2)), HallStoreError, content);
+      await assert.rejects(store.remove(1), HallStoreError, content);
+      assert.equal(await readFile(path, 'utf8'), content);
+    }
+  });
+});

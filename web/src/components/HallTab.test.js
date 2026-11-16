@@ -190,3 +190,14 @@ test('a failed removal is reported and the hall is reloaded', async () => {
   await vi.waitFor(() => expect(api.getHall).toHaveBeenCalledTimes(2));
   expect(screen.getByText('#1990 Code review')).toBeTruthy();
 });
+test('a removed member disappears even if the reload afterwards fails', async () => {
+  api.removeHallMember.mockResolvedValue([]);
+  vi.spyOn(window, 'confirm').mockReturnValue(true);
+  render(HallTab, { date: '2026-11-16' });
+  await userEvent.click(await screen.findByRole('button', { name: '法師 怡君：工作中' }));
+  api.getHall.mockRejectedValueOnce(new Error('無法連線到本機伺服器'));
+  await userEvent.click(screen.getByRole('button', { name: '請離大廳' }));
+  expect(await screen.findByText('更新失敗：無法連線到本機伺服器')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '法師 怡君：工作中' })).toBeNull();
+  expect(screen.getByRole('button', { name: '劍士 小華：休息' })).toBeTruthy();
+});

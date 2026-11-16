@@ -21,7 +21,21 @@ export class HallStoreError extends Error {
 
 // 大廳成員依加入順序存成 JSON 陣列，只記 OpenProject 使用者編號與名稱。
 export function createHallStore(path, { initial = [] } = {}) {
-  const { read, write, exclusive } = createJsonListFile(path, { corrupt: () => new HallStoreError(), initial });
+  const file = createJsonListFile(path, { corrupt: () => new HallStoreError(), initial });
+  const { write, exclusive } = file;
+
+  // 檔案可能被手動編輯：每筆都必須是 { userId: 正整數, name: 字串 }，且編號不重複。
+  async function read() {
+    const list = await file.read();
+    const ids = new Set();
+    for (const item of list) {
+      const valid = item && typeof item === 'object' && Number.isInteger(item.userId) && item.userId >= 1
+        && typeof item.name === 'string' && !ids.has(item.userId);
+      if (!valid) throw new HallStoreError();
+      ids.add(item.userId);
+    }
+    return list;
+  }
 
   return {
     list: () => exclusive(read),

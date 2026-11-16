@@ -84,6 +84,8 @@
     try {
       await api.removeHallMember(member.userId);
       selectedId = null;
+      // 先從畫面拿掉：之後的重新讀取就算失敗，已請離的成員也不會留在場景裡。
+      members = members.filter(item => item.userId !== member.userId);
     } catch (error) {
       onbanner(error.message);
     }
