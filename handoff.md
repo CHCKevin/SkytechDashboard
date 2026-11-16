@@ -56,6 +56,8 @@
 - 連公司 OpenProject 的唯讀驗證：使用者、工時、搜尋、活動清單都和 OpenProject 一致；伺服器輸出不含 token。
 - 經使用者同意的真實寫入：在 #202 新增、修改、刪除測試工時，沒有殘留，原有工時完好。
 - OpenProject 拒絕寫入（422）時的訊息轉傳：2026-11-16 經使用者同意實測：以即時模式對 #202 送出 `POST /api/time-entries`（0.5 小時、`activityId: 999999`），本機回應 422 `{"code":"validation","message":"Activity is not set to one of the allowed values."}`，訊息為 OpenProject 原文；送出前先以 `/time_entries/form` 預檢確認會被拒絕，前後當日清單一致、無殘留，伺服器 log 不含 token。
+- HEAD（bdef2c2）即時模式瀏覽器 UI 全程重驗（2026-11-16 下午，經使用者同意寫入）：唯讀、切換日期不殘留舊資料、釘上／撕下、在 #202 經 UI 新增 → 修改 → 刪除（連按送出只建立一筆）、422 原文訊息顯示在視窗內且輸入保留；無殘留、log 不含 token。細節見 `tasks/todo.md`。
+- 仍未在真實環境驗證：`write_unconfirmed`、`timeout`、`upstream_error` 的畫面提示（需故障注入，只有自動測試）；釘上視窗連選兩項的競態（UI 上無法重現）。這次即時模式重驗未能重測窄螢幕版面（瀏覽器視窗無法縮小）。
 
 ## 已知限制與注意事項
 
