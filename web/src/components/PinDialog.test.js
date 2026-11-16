@@ -16,11 +16,25 @@ test('search, choose an activity, and pin', async () => {
   render(PinDialog, { onsubmit, oncancel: vi.fn(), searchDelay: 0 });
   await userEvent.type(screen.getByRole('searchbox'), '2051');
   await userEvent.click(await screen.findByRole('button', { name: /#2051/ }));
+  expect(onsubmit).not.toHaveBeenCalled();
   expect(screen.getByText('#2051 週會與進度回報')).toBeTruthy();
   const select = await screen.findByRole('combobox', { name: '預設活動' });
   await userEvent.selectOptions(select, 'Management');
   await userEvent.click(screen.getByRole('button', { name: '釘上布告欄' }));
+  expect(onsubmit).toHaveBeenCalledTimes(1);
   expect(onsubmit).toHaveBeenCalledWith({ workPackageId: 2051, activityId: 1 });
+});
+test('pressing Enter in the search box before choosing does not submit', async () => {
+  const onsubmit = vi.fn(async () => {});
+  const unhandled = vi.fn();
+  window.addEventListener('error', unhandled);
+  render(PinDialog, { onsubmit, oncancel: vi.fn(), searchDelay: 0 });
+  await userEvent.type(screen.getByRole('searchbox'), '2051{Enter}');
+  await screen.findByRole('button', { name: /#2051/ });
+  expect(onsubmit).not.toHaveBeenCalled();
+  expect(screen.queryByRole('alert')).toBeNull();
+  window.removeEventListener('error', unhandled);
+  expect(unhandled).not.toHaveBeenCalled();
 });
 test('pin button is disabled until a work package is chosen; errors are shown', async () => {
   const onsubmit = vi.fn(async () => { throw new Error('找不到該項目'); });

@@ -24,6 +24,7 @@
 
   async function submit(event) {
     event.preventDefault();
+    if (!workPackage || activities === null || pending) return;
     pending = true;
     error = '';
     try {

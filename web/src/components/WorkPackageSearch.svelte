@@ -60,7 +60,7 @@
   <ul class="suggestions" aria-label="搜尋結果">
     {#each results as workPackage (workPackage.id)}
       <li>
-        <button onclick={() => choose(workPackage)}>#{workPackage.id} {workPackage.subject}<small>{workPackage.project}</small></button>
+        <button type="button" onclick={() => choose(workPackage)}>#{workPackage.id} {workPackage.subject}<small>{workPackage.project}</small></button>
       </li>
     {/each}
   </ul>
