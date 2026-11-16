@@ -40,10 +40,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* 頂部列 */
 .topbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; color: var(--parchment); text-shadow: 2px 2px 0 #000; margin-bottom: 16px; }
 .guild { font-size: var(--fs-2); margin: 0; font-weight: normal; }
-.date-nav { display: flex; gap: 8px; align-items: center; font-size: var(--fs-2); }
+.date-nav { display: flex; gap: 8px; align-items: center; font-size: var(--fs-2); white-space: nowrap; flex-wrap: wrap; }
 
 /* 按鈕 */
-.btn { background: var(--brass); color: var(--ink); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 2px 12px; cursor: pointer; text-shadow: none; }
+.btn { background: var(--brass); color: var(--ink); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 2px 12px; cursor: pointer; text-shadow: none; white-space: nowrap; }
 .btn:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: none; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-primary { background: var(--seal); color: var(--parchment); }
