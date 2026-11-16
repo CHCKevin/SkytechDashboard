@@ -73,3 +73,26 @@
   - 計時器、週曆、月曆、排序。
 - 使用者決定：字級維持 12px（字型設計格線），標題與合計 24px。
 
+
+---
+
+# 公會大廳 — 第二階段
+
+設計：`docs/superpowers/specs/2026-11-17-guild-hall-design.md`
+計畫：`docs/superpowers/plans/2026-11-17-guild-hall.md`
+分支：`feature/guild-hall`（從 `feature/quest-board` 開出；第一階段尚未合併到 `develop`）
+
+- [ ] Task 1 設定 leaveWorkPackageId
+- [ ] Task 2 json-store 與成員名單儲存
+- [ ] Task 3 狀態判定純函式
+- [ ] Task 4 真實來源的三個唯讀方法
+- [ ] Task 5 示例來源
+- [ ] Task 6 輸入驗證與本機 API
+- [ ] Task 7 前端純函式與 API 用戶端
+- [ ] Task 8 頁籤與 QuestTab
+- [ ] Task 9 像素繪製元件與大廳場景
+- [ ] Task 10 成員面板與招募視窗
+- [ ] Task 11 組合 HallTab
+- [ ] Task 12 示例模式瀏覽器驗證
+- [ ] Task 13 即時模式唯讀驗證
+- [ ] Task 14 文件收尾
