@@ -2,8 +2,8 @@
 
 最後更新：2026-11-17（Asia/Taipei）
 目前階段：
-- 第一階段（My time tracking 任務布告欄）已完成實作與驗證，位於 `feature/quest-board`（從 `develop` 開出），已推送、尚未合併。
-- 第二階段（公會大廳）已完成實作與驗證，位於 `feature/guild-hall`（從 `feature/quest-board` 開出，因為第一階段尚未合併），尚未推送、尚未合併。
+- 第一階段（My time tracking 任務布告欄）已完成實作與驗證，並已合併到 `develop`（PR #1，分支 `feature/quest-board` 已刪除）。
+- 第二階段（公會大廳）已完成實作與驗證，位於 `feature/guild-hall`（從 `develop` 開出，基底是 PR #1 的合併 commit），尚未推送、尚未合併。
 
 ## 專案方向
 
@@ -88,6 +88,6 @@
 
 ## 下一步候選
 
-- 合併 `feature/quest-board` 到 `develop`，再合併 `feature/guild-hall`。
+- 推送 `feature/guild-hall` 並開 PR 合併到 `develop`。
 - 大廳後續候選：自訂造型、拖曳換位子、走路或工作動畫、超過 16 人、週檢視。
 - 任務欄後續候選：週曆／月曆檢視、計時器模式、常駐任務排序、多人內網部署。

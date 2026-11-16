@@ -1,7 +1,7 @@
 # 任務布告欄 — 第一階段（My time tracking）
 
 設計：`docs/superpowers/specs/2026-11-16-quest-board-time-tracking-design.md`
-分支：`feature/quest-board`（從 `develop` 開出，完成後合併回 `develop`）
+分支：`feature/quest-board`（已合併到 `develop`，PR #1，分支已刪除）
 
 ## 後端 — `docs/superpowers/plans/2026-11-16-quest-board-backend.md`
 
@@ -80,7 +80,7 @@
 
 設計：`docs/superpowers/specs/2026-11-17-guild-hall-design.md`
 計畫：`docs/superpowers/plans/2026-11-17-guild-hall.md`
-分支：`feature/guild-hall`（從 `feature/quest-board` 開出；第一階段尚未合併到 `develop`）
+分支：`feature/guild-hall`（從 `develop` 開出，基底是 PR #1 的合併 commit）
 
 - [x] Task 1 設定 leaveWorkPackageId（84f79d1）
 - [x] Task 2 json-store 與成員名單儲存（a5b21e8）
