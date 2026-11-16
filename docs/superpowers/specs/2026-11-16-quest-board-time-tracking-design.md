@@ -159,7 +159,7 @@ OpenProject 明確拒絕（422 `validation`、403、404）不屬於不確定，�
 
 讀取狀態：切換日期時先清空清單並顯示「讀取中…」；讀取失敗時清單保持空白並顯示錯誤，避免在新日期下顯示舊日期的工時。
 
-**尚未在真實環境驗證**：OpenProject 422 訊息轉傳只用假伺服器（依 OpenProject 文件的錯誤格式）測過。要實測，需要對正式環境送出一筆預期會被拒絕的寫入，必須先取得使用者同意。
+**真實環境驗證**：OpenProject 422 訊息轉傳已於 2026-11-16 經使用者同意實測：以即時模式對 #202 送出 `POST /api/time-entries`（0.5 小時、`activityId: 999999`），本機回應 422 `{"code":"validation","message":"Activity is not set to one of the allowed values."}`，訊息為 OpenProject 原文；送出前先以 `/time_entries/form` 預檢確認會被拒絕，前後當日清單一致、無殘留，伺服器 log 不含 token。
 
 ## 9. 測試與驗證
 

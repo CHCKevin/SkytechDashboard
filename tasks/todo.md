@@ -35,6 +35,7 @@
 - [x] Task 11 正式產物 CSP 下瀏覽器驗證（示例）：12/12 通過、無 CSP 違規；途中修正釘上視窗提前送出（6ed1bce）、網站圖示 404（4d27343）、窄螢幕日期列（見下一筆 commit）
 - [x] Task 12 真實 OpenProject 唯讀驗證（使用者、11/16 與 11/13 工時、搜尋 202 精確編號排第一、活動清單皆與 OpenProject 一致；瀏覽器無寫入請求、無主控台錯誤；伺服器輸出無 token）
 - [x] Task 13 真實寫入驗證（2026-11-16 經使用者同意於 #202：新增 2760 PT15M → 修改 PT30M（備註未變動）→ 刪除；無殘留，原有 2759 完好）
+- [x] 422 訊息轉傳真實驗證（2026-11-16 經使用者同意實測：以即時模式對 #202 送出 `POST /api/time-entries`（0.5 小時、`activityId: 999999`），本機回應 422 `{"code":"validation","message":"Activity is not set to one of the allowed values."}`，訊息為 OpenProject 原文；送出前先以 `/time_entries/form` 預檢確認會被拒絕，前後當日清單一致、無殘留，伺服器 log 不含 token）
 - [x] Task 14 文件收尾（handoff.md 改寫、本 Review）
 
 ## Review
@@ -46,6 +47,7 @@
   - 示例模式正式產物在 CSP 下的瀏覽器驗證：12/12，沒有 CSP 違規或主控台錯誤；總審查修正後重跑一次，同樣 12/12。
   - 真實 OpenProject 唯讀驗證一致。
   - 經使用者同意，在 #202 做新增、修改、刪除，沒有殘留。
+  - 經使用者同意，以 `activityId: 999999` 實測 422 訊息轉傳：本機回 422 `validation` 並帶 OpenProject 原文訊息，沒有殘留。
 - 審查：
   - 三次專門審查：client 寫入、HTTP API、整條分支總審查。
   - 所有 Critical／Important 問題都已修正並補測試。
