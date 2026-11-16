@@ -5,13 +5,13 @@
 
 ## 後端 — `docs/superpowers/plans/2026-11-16-quest-board-backend.md`
 
-- [ ] Task 1 移除 3D 宇宙程式碼
-- [ ] Task 2 設定：dailyTargetHours、dataDir、staticDir
-- [ ] Task 3 時數 ↔ ISO duration
-- [ ] Task 4 錯誤代碼與 HTTP 狀態對應
-- [ ] Task 5 假 OpenProject 支援請求本體
-- [ ] Task 6 client 僅限工時的寫入
-- [ ] Task 7 輸入驗證
+- [x] Task 1 移除 3D 宇宙程式碼（7fbe007）
+- [x] Task 2 設定：dailyTargetHours、dataDir、staticDir（a3509b6）
+- [x] Task 3 時數 ↔ ISO duration（708d328）
+- [x] Task 4 錯誤代碼與 HTTP 狀態對應（99ffc54）
+- [x] Task 5 假 OpenProject 支援請求本體（46d86e7）
+- [x] Task 6 client 僅限工時的寫入（6a58e61、審查修正 fa4469a）
+- [x] Task 7 輸入驗證（e2032b2）
 - [ ] Task 8 真實 OpenProject 工時來源
 - [ ] Task 9 示例來源
 - [ ] Task 10 常駐任務儲存

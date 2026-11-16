@@ -1471,8 +1471,8 @@ Expected: FAIL
   import TodayLog from './components/TodayLog.svelte';
   import TopBar from './components/TopBar.svelte';
 
-  // 這些錯誤代表請求可能已送達 OpenProject 但回應遺失，不能直接重送。
-  const UNCERTAIN = new Set(['network', 'timeout']);
+  // 這些錯誤代表請求可能已送達 OpenProject 但回應遺失或無法解讀，不能直接重送。
+  const UNCERTAIN = new Set(['network', 'timeout', 'write_unconfirmed']);
 
   let date = $state(todayLocal());
   let me = $state(null);
