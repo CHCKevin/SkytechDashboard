@@ -12,13 +12,13 @@
 - [x] Task 5 假 OpenProject 支援請求本體（46d86e7）
 - [x] Task 6 client 僅限工時的寫入（6a58e61、審查修正 fa4469a）
 - [x] Task 7 輸入驗證（e2032b2）
-- [ ] Task 8 真實 OpenProject 工時來源
-- [ ] Task 9 示例來源
-- [ ] Task 10 常駐任務儲存
-- [ ] Task 11 靜態檔案掃描 Vite 產物
-- [ ] Task 12 HTTP API、本體讀取、CSRF
-- [ ] Task 13 啟動組裝與整合測試
-- [ ] Task 14 示例模式煙霧測試
+- [x] Task 8 真實 OpenProject 工時來源（a4314b5）
+- [x] Task 9 示例來源（5decfd3）
+- [x] Task 10 常駐任務儲存（09d882b）
+- [x] Task 11 靜態檔案掃描 Vite 產物（cb0faaa）
+- [x] Task 12 HTTP API、本體讀取、CSRF（45cd2c7；審查修正 39e7041）
+- [x] Task 13 啟動組裝與整合測試（ba1cc47；測試埠號修正 01b014c）
+- [x] Task 14 示例模式煙霧測試（2026-11-16：me、當日工時、#231 搜尋、新增 1.5h、釘上任務皆正常；缺自訂標頭與 cross-site 皆 403）
 
 ## 前端 — `docs/superpowers/plans/2026-11-16-quest-board-frontend.md`
 

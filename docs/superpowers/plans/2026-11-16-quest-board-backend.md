@@ -1014,7 +1014,7 @@ export function createTimeTrackingSource({ client }) {
       const sortBy = encodeURIComponent('[["updatedAt","desc"]]');
       const [page, exact] = await Promise.all([
         client.getJson(`/api/v3/work_packages?pageSize=10&filters=${filters}&sortBy=${sortBy}`),
-        /^d+$/.test(term) ? getWorkPackage(Number(term)).catch(ignoreMissing) : null,
+        /^\d+$/.test(term) ? getWorkPackage(Number(term)).catch(ignoreMissing) : null,
       ]);
       const items = page?._embedded?.elements;
       if (!Array.isArray(items)) throw new SourceError('invalid_response');
