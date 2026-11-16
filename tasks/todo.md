@@ -22,18 +22,18 @@
 
 ## 前端 — `docs/superpowers/plans/2026-11-16-quest-board-frontend.md`
 
-- [ ] Task 1 Vite + Svelte + Vitest 工具鏈
-- [ ] Task 2 本地日期工具
-- [ ] Task 3 時數、合計、進度條 action
-- [ ] Task 4 API 用戶端
-- [ ] Task 5 像素字型與全域樣式
-- [ ] Task 6 頂部列、布告欄、搜尋、特別任務
-- [ ] Task 7 本日已接任務
-- [ ] Task 8 接任務／修改視窗
-- [ ] Task 9 釘上常駐任務視窗
-- [ ] Task 10 App 組裝
-- [ ] Task 11 正式產物 CSP 下瀏覽器驗證（示例）
-- [ ] Task 12 真實 OpenProject 唯讀驗證
+- [x] Task 1 Vite + Svelte + Vitest 工具鏈（443c364；vite 8.3.8、svelte 5.57.3、vitest 4.1.12）
+- [x] Task 2 本地日期工具（6e09ffa）
+- [x] Task 3 時數、合計、進度條 action（5130580）
+- [x] Task 4 API 用戶端（9cd58b1）
+- [x] Task 5 像素字型與全域樣式（a78639a；Cubic 11，OFL 1.1，12px 格線）
+- [x] Task 6 頂部列、布告欄、搜尋、特別任務（985b00d）
+- [x] Task 7 本日已接任務（cdbca8d）
+- [x] Task 8 接任務／修改視窗（e408261）
+- [x] Task 9 釘上常駐任務視窗（532d02a）
+- [x] Task 10 App 組裝（8ede12a；dialog 角色修正 82dfaf3）
+- [x] Task 11 正式產物 CSP 下瀏覽器驗證（示例）：12/12 通過、無 CSP 違規；途中修正釘上視窗提前送出（6ed1bce）、網站圖示 404（4d27343）、窄螢幕日期列（見下一筆 commit）
+- [x] Task 12 真實 OpenProject 唯讀驗證（使用者、11/16 與 11/13 工時、搜尋 202 精確編號排第一、活動清單皆與 OpenProject 一致；瀏覽器無寫入請求、無主控台錯誤；伺服器輸出無 token）
 - [ ] Task 13 真實寫入驗證（需使用者同意）
 - [ ] Task 14 文件收尾
 
