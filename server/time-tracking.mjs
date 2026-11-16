@@ -70,6 +70,37 @@ export function createTimeTrackingSource({ client }) {
       if (!Array.isArray(allowed)) throw new SourceError('invalid_response');
       return allowed.map(activity => ({ id: activity.id, name: activity.name ?? '', default: Boolean(activity.default) }));
     },
+
+    // /api/v3/users 需要管理權限；principals 的 name 篩選一般使用者也能用。
+    async searchUsers(term) {
+      if (!term) return [];
+      const filters = encodeURIComponent(JSON.stringify([
+        { name: { operator: '~', values: [term] } }, { type: { operator: '=', values: ['User'] } },
+      ]));
+      const page = await client.getJson(`/api/v3/principals?pageSize=10&filters=${filters}`);
+      const items = page?._embedded?.elements;
+      if (!Array.isArray(items)) throw new SourceError('invalid_response');
+      return items.map(user => ({ id: user.id, name: user.name ?? '' }));
+    },
+
+    async getUser(id) {
+      const user = await client.getJson(`/api/v3/users/${id}`);
+      return { id: user.id, name: user.name ?? '' };
+    },
+
+    // 一次查詢取回多位使用者某日的工時，每筆標上所屬使用者。
+    async listEntriesForUsers(date, userIds) {
+      if (!userIds.length) return [];
+      const filters = JSON.stringify([
+        { user: { operator: '=', values: userIds.map(String) } }, { spentOn: { operator: '=d', values: [date] } },
+      ]);
+      const elements = await client.getAll('/api/v3/time_entries', { filters, sortBy: '[["id","asc"]]' });
+      return elements.map(hal => {
+        const userId = idFrom(hal?._links?.user?.href, /^\/api\/v3\/users\/(\d+)$/);
+        if (userId === null) throw new SourceError('invalid_response');
+        return { userId, ...toEntry(hal) };
+      });
+    },
   };
 }
 
