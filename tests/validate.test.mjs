@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { InputError, parseDate, parsePathId, parseEntryInput, parseQuestInput, parseSearchTerm } from '../server/validate.mjs';
+import { InputError, parseDate, parsePathId, parseEntryInput, parseQuestInput, parseSearchTerm, parseHallMemberInput } from '../server/validate.mjs';
 
 const fails = (fn, field) => assert.throws(fn, error => error instanceof InputError && error.field === field);
 
@@ -50,4 +50,12 @@ test('parseQuestInput and parseSearchTerm', () => {
   assert.equal(parseSearchTerm('   '), '');
   assert.equal(parseSearchTerm(null), '');
   fails(() => parseSearchTerm('x'.repeat(101)), 'q');
+});
+test('parseHallMemberInput requires a positive integer userId and nothing else', () => {
+  assert.deepEqual(parseHallMemberInput({ userId: 18 }), { userId: 18 });
+  fails(() => parseHallMemberInput({}), 'userId');
+  for (const bad of ['18', 0, 1.5, null, -3]) fails(() => parseHallMemberInput({ userId: bad }), 'userId');
+  fails(() => parseHallMemberInput({ userId: 18, name: 'x' }), 'name');
+  fails(() => parseHallMemberInput([]), 'body');
+  fails(() => parseHallMemberInput(null), 'body');
 });

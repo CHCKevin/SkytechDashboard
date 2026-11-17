@@ -47,3 +47,7 @@ export const listActivities = workPackageId => request(`/api/activities?workPack
 export const listQuests = () => request('/api/quests');
 export const pinQuest = input => request('/api/quests', { method: 'POST', body: input });
 export const unpinQuest = workPackageId => request(`/api/quests/${workPackageId}`, { method: 'DELETE' });
+export const searchUsers = query => request(`/api/users/search?q=${encodeURIComponent(query)}`);
+export const getHall = date => request(`/api/hall?date=${encodeURIComponent(date)}`);
+export const addHallMember = userId => request('/api/hall/members', { method: 'POST', body: { userId } });
+export const removeHallMember = userId => request(`/api/hall/members/${userId}`, { method: 'DELETE' });

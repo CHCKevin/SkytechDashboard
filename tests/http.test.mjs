@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { createHandler, listen } from '../server/http.mjs';
 import { createDemoSource } from '../server/demo.mjs';
 import { createQuestStore } from '../server/quests.mjs';
+import { createHallStore, HallStoreError } from '../server/hall.mjs';
 import { SourceError } from '../server/openproject/errors.mjs';
 
 const CSP = "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
@@ -17,6 +18,7 @@ async function withServer(overrides, run) {
   await writeFile(join(dir, 'index.html'), '<!doctype html><title>t</title>');
   const options = {
     source: createDemoSource({ today: '2026-11-16' }), quests: createQuestStore(join(dir, 'quests.json')),
+    hall: createHallStore(join(dir, 'hall.json')), leaveWorkPackageId: 200,
     mode: 'demo', dailyTargetHours: 8,
     staticFiles: { '/': { path: join(dir, 'index.html'), type: 'text/html; charset=utf-8' } },
     ...overrides,
@@ -327,4 +329,98 @@ test('quest store errors are logged by code only', async () => {
   }
   assert.equal(logged.length, 1);
   assert.equal(logged[0][0], 'Quest store error:');
+});
+
+test('user search returns matching users', async () => {
+  await withServer({}, async port => {
+    const found = await send(port, `/api/users/search?q=${encodeURIComponent('小')}`);
+    assert.equal(found.status, 200);
+    assert.ok(found.json.length >= 2);
+    assert.ok(found.json.every(user => user.name.includes('小')));
+    assert.deepEqual((await send(port, '/api/users/search')).json, []);
+    assert.equal((await send(port, `/api/users/search?q=${'x'.repeat(101)}`)).status, 400);
+  });
+});
+test('an empty hall has no members; the date is required and validated', async () => {
+  await withServer({}, async port => {
+    assert.deepEqual((await send(port, '/api/hall?date=2026-11-16')).json, { date: '2026-11-16', members: [] });
+    assert.equal((await send(port, '/api/hall')).status, 400);
+    const bad = await send(port, '/api/hall?date=2026-13-40');
+    assert.equal(bad.status, 400);
+    assert.equal(bad.json.error.field, 'date');
+  });
+});
+test('recruited members show their status, total and entries for the day', async () => {
+  await withServer({}, async port => {
+    const added = await write(port, '/api/hall/members', 'POST', { userId: 11 });
+    assert.equal(added.status, 200);
+    assert.deepEqual(added.json, [{ userId: 11, name: '劍士 小華' }]);
+    await write(port, '/api/hall/members', 'POST', { userId: 12 });
+    assert.equal((await write(port, '/api/hall/members', 'POST', { userId: 13 })).json.length, 3);
+    const hall = (await send(port, '/api/hall?date=2026-11-16')).json;
+    assert.deepEqual(hall.members.map(member => [member.userId, member.status, member.totalHours]), [
+      [11, 'resting', 8], [12, 'working', 5], [13, 'idle', 0],
+    ]);
+    assert.deepEqual(Object.keys(hall.members[1].entries[0]).sort(), ['activityName', 'comment', 'hours', 'id', 'workPackageId', 'workPackageSubject']);
+    const yesterday = (await send(port, '/api/hall?date=2026-11-15')).json;
+    assert.deepEqual(yesterday.members.map(member => member.status), ['idle', 'idle', 'idle']);
+  });
+});
+test('the leave work package comes from configuration', async () => {
+  await withServer({ leaveWorkPackageId: 1990 }, async port => {
+    await write(port, '/api/hall/members', 'POST', { userId: 11 });
+    await write(port, '/api/hall/members', 'POST', { userId: 12 });
+    const hall = (await send(port, '/api/hall?date=2026-11-16')).json;
+    assert.deepEqual(hall.members.map(member => member.status), ['working', 'resting']);
+  });
+});
+test('recruiting validates the user and the hall capacity', async () => {
+  await withServer({}, async port => {
+    const missing = await write(port, '/api/hall/members', 'POST', { userId: 999 });
+    assert.equal(missing.status, 404);
+    assert.equal(missing.json.error.code, 'not_found');
+    const invalid = await write(port, '/api/hall/members', 'POST', { userId: 'x' });
+    assert.equal(invalid.status, 400);
+    assert.equal(invalid.json.error.field, 'userId');
+    assert.deepEqual((await send(port, '/api/hall?date=2026-11-16')).json.members, []);
+  });
+  const source = { ...createDemoSource({ today: '2026-11-16' }), getUser: async id => ({ id, name: `U${id}` }) };
+  await withServer({ source }, async port => {
+    for (let id = 1; id <= 16; id += 1) assert.equal((await write(port, '/api/hall/members', 'POST', { userId: id })).status, 200);
+    const full = await write(port, '/api/hall/members', 'POST', { userId: 17 });
+    assert.equal(full.status, 409);
+    assert.equal(full.json.error.code, 'hall_full');
+    assert.equal((await write(port, '/api/hall/members', 'POST', { userId: 3 })).status, 200);
+    assert.equal((await send(port, '/api/hall?date=2026-11-16')).json.members.length, 16);
+  });
+});
+test('members can be removed', async () => {
+  await withServer({}, async port => {
+    await write(port, '/api/hall/members', 'POST', { userId: 11 });
+    await write(port, '/api/hall/members', 'POST', { userId: 12 });
+    const removed = await write(port, '/api/hall/members/11', 'DELETE');
+    assert.equal(removed.status, 200);
+    assert.deepEqual(removed.json, [{ userId: 12, name: '法師 怡君' }]);
+    assert.equal((await write(port, '/api/hall/members/abc', 'DELETE')).status, 400);
+    assert.equal((await write(port, '/api/hall/members/77', 'DELETE')).status, 200);
+  });
+});
+test('hall writes need the custom header and cross-site reads are refused', async () => {
+  await withServer({}, async port => {
+    const json = { 'Content-Type': 'application/json' };
+    assert.equal((await send(port, '/api/hall/members', { method: 'POST', body: { userId: 11 }, headers: json })).status, 403);
+    assert.equal((await send(port, '/api/hall/members/11', { method: 'DELETE' })).status, 403);
+    assert.equal((await send(port, '/api/hall?date=2026-11-16', { headers: { 'Sec-Fetch-Site': 'cross-site' } })).status, 403);
+    assert.equal((await send(port, '/api/users/search?q=x', { headers: { 'Sec-Fetch-Site': 'cross-site' } })).status, 403);
+    assert.equal((await send(port, '/api/hall/members', { method: 'PUT', headers: { 'X-Quest-Board': '1' } })).status, 405);
+    assert.deepEqual((await send(port, '/api/hall?date=2026-11-16')).json.members, []);
+  });
+});
+test('corrupt hall file is a 500 with a clear code', async () => {
+  const hall = { list: async () => { throw new HallStoreError(); } };
+  await withServer({ hall }, async port => {
+    const res = await send(port, '/api/hall?date=2026-11-16');
+    assert.equal(res.status, 500);
+    assert.equal(res.json.error.code, 'hall_corrupt');
+  });
 });

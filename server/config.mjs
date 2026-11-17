@@ -16,11 +16,15 @@ export function parseConfig(input) {
   if (typeof dailyTargetHours !== 'number' || !(dailyTargetHours > 0 && dailyTargetHours <= 24)) {
     throw new Error('dailyTargetHours must be a number greater than 0 and at most 24');
   }
+  const leaveWorkPackageId = input.leaveWorkPackageId === undefined ? 200 : input.leaveWorkPackageId;
+  if (!Number.isInteger(leaveWorkPackageId) || leaveWorkPackageId < 1) {
+    throw new Error('leaveWorkPackageId must be a positive integer');
+  }
   const dataDir = nonEmpty(input.dataDir ?? 'data', 'dataDir');
   const staticDir = nonEmpty(input.staticDir ?? 'web/dist', 'staticDir');
   const config = {
     mode: input.mode, host: '127.0.0.1', port, baseUrl: null, apiToken: null,
-    dailyTargetHours, dataDir, staticDir,
+    dailyTargetHours, leaveWorkPackageId, dataDir, staticDir,
   };
   if (input.mode === 'demo') return Object.freeze(config);
   let url;

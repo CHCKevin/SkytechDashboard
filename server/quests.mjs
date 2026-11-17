@@ -1,5 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { createJsonListFile } from './json-store.mjs';
 
 export class QuestStoreError extends Error {
   constructor() {
@@ -9,37 +8,9 @@ export class QuestStoreError extends Error {
   }
 }
 
-// 常駐任務存成 JSON 陣列；寫入先寫暫存檔再改名，並以佇列序列化避免併發覆蓋。
+// 常駐任務存成 JSON 陣列。
 export function createQuestStore(path) {
-  let queue = Promise.resolve();
-  let tempCounter = 0;
-
-  async function read() {
-    let raw;
-    try {
-      raw = await readFile(path, 'utf8');
-    } catch (error) {
-      if (error.code === 'ENOENT') return [];
-      throw error;
-    }
-    let data;
-    try { data = JSON.parse(raw); } catch { throw new QuestStoreError(); }
-    if (!Array.isArray(data)) throw new QuestStoreError();
-    return data;
-  }
-
-  async function write(list) {
-    await mkdir(dirname(path), { recursive: true });
-    const temp = `${path}.${process.pid}.${tempCounter++}.tmp`;
-    await writeFile(temp, `${JSON.stringify(list, null, 2)}\n`);
-    await rename(temp, path);
-  }
-
-  function exclusive(task) {
-    const run = queue.then(task, task);
-    queue = run.catch(() => {});
-    return run;
-  }
+  const { read, write, exclusive } = createJsonListFile(path, { corrupt: () => new QuestStoreError() });
 
   return {
     list: () => exclusive(read),

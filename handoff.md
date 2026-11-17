@@ -1,20 +1,23 @@
 # 任務布告欄 工作交接
 
-最後更新：2026-11-16（Asia/Taipei）
-目前階段：第一階段（My time tracking 任務布告欄）已完成實作與驗證，位於 `feature/quest-board`（從 `develop` 開出），尚未合併。
+最後更新：2026-11-17（Asia/Taipei）
+目前階段：
+- 第一階段（My time tracking 任務布告欄）已完成實作與驗證，並已合併到 `develop`（PR #1，分支 `feature/quest-board` 已刪除）。
+- 第二階段（公會大廳）已完成實作與驗證，位於 `feature/guild-hall`（從 `develop` 開出，基底是 PR #1 的合併 commit），尚未推送、尚未合併。
 
 ## 專案方向
 
 - 原 3D 宇宙 Dashboard 已廢止並移除程式碼，只保留 OpenProject 存取部分。歷史設計與計畫仍在 `docs/superpowers/`。
 - 新方向：自己優化操作 OpenProject 的像素風介面。第一階段是「冒險者工時公會」任務布告欄，用來快速記錄工時，不必每次重新選 work package。
+- 第二階段是「公會大廳」頁籤：把挑選的成員（最多 16 位）放進像素場景，依當日工時顯示工作中／發呆／休息，點成員可唯讀檢視其當日工時。
 - 主要分支為 `develop`；新功能分支從 `develop` 開出，合併回 `develop`。
 
 ## 接續時先讀
 
 1. 本文件。
-2. `docs/superpowers/specs/2026-11-16-quest-board-time-tracking-design.md`（設計，含實測過的 OpenProject API 細節）。
+2. `docs/superpowers/specs/2026-11-16-quest-board-time-tracking-design.md`（第一階段設計，含實測過的 OpenProject API 細節）與 `docs/superpowers/specs/2026-11-17-guild-hall-design.md`（公會大廳設計）。
 3. `tasks/todo.md`（進度與驗證紀錄）。
-4. 實作計畫：`docs/superpowers/plans/2026-11-16-quest-board-backend.md`、`docs/superpowers/plans/2026-11-16-quest-board-frontend.md`。
+4. 實作計畫：`docs/superpowers/plans/2026-11-16-quest-board-backend.md`、`docs/superpowers/plans/2026-11-16-quest-board-frontend.md`、`docs/superpowers/plans/2026-11-17-guild-hall.md`。
 
 ## 如何執行
 
@@ -36,7 +39,8 @@
 | `apiToken` | 個人 API token；只存在伺服器端，不會傳給瀏覽器或寫入 log |
 | `port` | 預設 4173 |
 | `dailyTargetHours` | 每日目標時數，預設 8 |
-| `dataDir` | 常駐任務存放目錄，預設 `data`（即時模式存 `quests.json`，示例模式存 `demo-quests.json`） |
+| `leaveWorkPackageId` | 請假的 work package 編號，預設 200；大廳用它判定成員是否休息 |
+| `dataDir` | 本機資料目錄，預設 `data`。常駐任務：即時模式 `quests.json`、示例模式 `demo-quests.json`；大廳成員：即時模式 `hall.json`、示例模式 `demo-hall.json` |
 | `staticDir` | 前端產物目錄，預設 `web/dist` |
 
 禁止把 token 寫進文件、commit 或對話輸出。
@@ -46,6 +50,11 @@
 - `server/openproject/client.mjs`：唯一持有 token 的模組。讀取限 `/api/v3`；寫入只允許工時的 POST/PATCH/DELETE 與 `/time_entries/form`，不跟隨重新導向、不自動重試。寫入成功但回應無法解讀時回報 `write_unconfirmed`。
 - `server/time-tracking.mjs`（真實）與 `server/demo.mjs`（記憶體）實作同一個來源介面。
 - `server/http.mjs`：本機 JSON API。防護包括 Host 檢查、寫入需 `X-Quest-Board: 1`、Origin 白名單、拒絕 `Sec-Fetch-Site: cross-site`、只收 JSON 且上限 16KB，以及固定 CSP `default-src 'self'`。
+- 公會大廳（只讀取 OpenProject）：
+  - `server/hall.mjs`：成員名單儲存（最多 16 位，只記使用者編號與名稱）；`server/json-store.mjs` 是它和 quests 共用的 JSON 陣列檔讀寫。
+  - `server/hall-status.mjs`：狀態判定純函式。當日有請假 work package 的工時 → 休息；沒有工時 → 發呆；其餘 → 工作中。
+  - 來源新增 `searchUsers`、`getUser`、`listEntriesForUsers`，都是 GET。全員當日工時以一次查詢取回。
+  - 前端：`App.svelte` 只管頁籤、日期與橫幅；`QuestTab.svelte` 是第一階段的全部內容；`HallTab.svelte` 負責讀取、每 5 分鐘自動更新與選取。座位分配在 `web/src/lib/seats.js`，造型在 `web/src/lib/sprite.js`（由使用者編號固定算出）。
 - `web/`：Svelte 5 + Vite。`web/src/lib/api.js` 是唯一呼叫 `/api` 的模組。元件不得使用 inline style、`style:` 或 `transition:`（會違反 CSP）。
 - 字型：俐方體11號 Cubic 11（SIL OFL 1.1），設計格線 12px，字級只用 12px／24px。
 
@@ -58,12 +67,19 @@
 - OpenProject 拒絕寫入（422）時的訊息轉傳：2026-11-16 經使用者同意實測：以即時模式對 #202 送出 `POST /api/time-entries`（0.5 小時、`activityId: 999999`），本機回應 422 `{"code":"validation","message":"Activity is not set to one of the allowed values."}`，訊息為 OpenProject 原文；送出前先以 `/time_entries/form` 預檢確認會被拒絕，前後當日清單一致、無殘留，伺服器 log 不含 token。
 - HEAD（bdef2c2）即時模式瀏覽器 UI 全程重驗（2026-11-16 下午，經使用者同意寫入）：唯讀、切換日期不殘留舊資料、釘上／撕下、在 #202 經 UI 新增 → 修改 → 刪除（連按送出只建立一筆）、422 原文訊息顯示在視窗內且輸入保留；無殘留、log 不含 token。細節見 `tasks/todo.md`。
 - 仍未在真實環境驗證：`write_unconfirmed`、`timeout`、`upstream_error` 的畫面提示（需故障注入，只有自動測試）；釘上視窗連選兩項的競態（UI 上無法重現）。這次即時模式重驗未能重測窄螢幕版面（瀏覽器視窗無法縮小）。
+- 公會大廳（2026-11-17）：示例模式全流程瀏覽器驗證、即時模式唯讀驗證皆通過；寫入請求只有本機成員名單，沒有對 OpenProject 的寫入。細節與未驗證項目見 `tasks/todo.md` 的第二階段。
 
 ## 已知限制與注意事項
 
 - 單人本機使用，沒有登入機制。
 - 沒有計時器、週曆、月曆、拖曳排序，這些留待後續階段。
+- 重新 `npm run build` 會清空 `web/dist`；正在執行的伺服器仍指向舊檔名，頁面會載入失敗，必須重啟伺服器。
+- 驗證時若 4173 已被使用者自己的伺服器佔用，不要停掉它：另寫一份設定檔改用其他埠號與資料目錄。
+- 大廳能看到哪些人的工時，取決於 token 在 OpenProject 的權限；看不到某人的工時時，該成員會顯示發呆，而不是「無法讀取」。
+- 大廳第一次讀取失敗後，每次自動更新都會短暫顯示「讀取中…」；切換頁籤會重新掛載並重讀該頁籤的資料。
 - 已實測的 OpenProject 行為：
+  - `/api/v3/users` 列表回 403，所以成員只能用名稱搜尋（`/api/v3/principals` 的 `name` 篩選），不能瀏覽全部名單。
+  - `principals` 的 `any_name_attribute` 篩選、工時的 `work_package` 篩選都回 500；工時依 work package 篩選要用 `entity_id`。
   - `subjectOrId` 搜尋也會比對名稱子字串，所以純數字搜尋會另外精確查詢該編號。
   - 對不存在的 work package，`/time_entries/form` 會回 500，所以寫入前會先用 GET 確認。
   - 活動類型依專案而不同，而且可以不指定。
@@ -72,5 +88,6 @@
 
 ## 下一步候選
 
-- 合併 `feature/quest-board` 到 `develop`。
-- 第二階段候選：週曆／月曆檢視、計時器模式、常駐任務排序、多人內網部署。
+- 推送 `feature/guild-hall` 並開 PR 合併到 `develop`。
+- 大廳後續候選：自訂造型、拖曳換位子、走路或工作動畫、超過 16 人、週檢視。
+- 任務欄後續候選：週曆／月曆檢視、計時器模式、常駐任務排序、多人內網部署。

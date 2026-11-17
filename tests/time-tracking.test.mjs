@@ -165,3 +165,64 @@ test('createEntry keeps definite OpenProject rejections as they are, not write_u
     });
   }
 });
+
+const userHal = (id, name) => ({ _type: 'User', id, name, _links: { self: { href: `/api/v3/users/${id}` } } });
+const withUser = (id, overrides = {}) => {
+  const hal = entryHal(overrides);
+  return { ...hal, _links: { ...hal._links, user: { href: `/api/v3/users/${id}`, title: `U${id}` } } };
+};
+
+test('searchUsers filters principals by name and user type', async () => {
+  await withSource(() => ({ body: collection([userHal(18, '陳甲'), userHal(23, '陳乙')]) }), async (source, fake) => {
+    assert.deepEqual(await source.searchUsers('陳'), [{ id: 18, name: '陳甲' }, { id: 23, name: '陳乙' }]);
+    const req = fake.requests[0];
+    assert.equal(req.method, 'GET');
+    assert.equal(req.path, '/api/v3/principals');
+    assert.equal(req.search.get('pageSize'), '10');
+    assert.deepEqual(JSON.parse(req.search.get('filters')), [
+      { name: { operator: '~', values: ['陳'] } }, { type: { operator: '=', values: ['User'] } },
+    ]);
+  });
+});
+test('searchUsers with an empty term does not call OpenProject', async () => {
+  await withSource(() => ({ body: collection([]) }), async (source, fake) => {
+    assert.deepEqual(await source.searchUsers(''), []);
+    assert.equal(fake.requests.length, 0);
+  });
+});
+test('searchUsers rejects a response without elements', async () => {
+  await withSource(() => ({ body: { _type: 'Collection' } }), async source => {
+    await assert.rejects(source.searchUsers('x'), { code: 'invalid_response' });
+  });
+});
+test('getUser returns id and name, and reports a missing user', async () => {
+  await withSource(url => (url.pathname === '/api/v3/users/18' ? { body: userHal(18, '陳甲') } : { status: 404, body: {} }), async source => {
+    assert.deepEqual(await source.getUser(18), { id: 18, name: '陳甲' });
+    await assert.rejects(source.getUser(99), { code: 'not_found' });
+  });
+});
+test('listEntriesForUsers filters by users and day and tags each entry with its user', async () => {
+  await withSource(() => ({ body: collection([withUser(18), withUser(23, { id: 2760, hours: 'PT1H' })]) }), async (source, fake) => {
+    const entries = await source.listEntriesForUsers('2026-11-13', [18, 23]);
+    assert.deepEqual(entries.map(entry => [entry.userId, entry.id, entry.hours, entry.workPackageId]), [[18, 2759, 2.5, 202], [23, 2760, 1, 202]]);
+    const req = fake.requests[0];
+    assert.equal(req.method, 'GET');
+    assert.equal(req.path, '/api/v3/time_entries');
+    assert.deepEqual(JSON.parse(req.search.get('filters')), [
+      { user: { operator: '=', values: ['18', '23'] } }, { spentOn: { operator: '=d', values: ['2026-11-13'] } },
+    ]);
+    assert.equal(req.search.get('sortBy'), '[["id","asc"]]');
+  });
+});
+test('listEntriesForUsers with no users does not call OpenProject', async () => {
+  await withSource(() => ({ body: collection([]) }), async (source, fake) => {
+    assert.deepEqual(await source.listEntriesForUsers('2026-11-13', []), []);
+    assert.equal(fake.requests.length, 0);
+  });
+});
+test('listEntriesForUsers skips an entry without a readable user instead of failing the whole hall', async () => {
+  await withSource(() => ({ body: collection([entryHal(), withUser(18, { id: 2761 })]) }), async source => {
+    const entries = await source.listEntriesForUsers('2026-11-13', [18]);
+    assert.deepEqual(entries.map(entry => [entry.userId, entry.id]), [[18, 2761]]);
+  });
+});
