@@ -1,7 +1,7 @@
 import { render } from './engine.js';
 import { character, lookIndices } from './assets/character.js';
 import { chair, table } from './assets/furniture.js';
-import { armchair, counter, floor, shelf, sofa, stool, wall } from './assets/hall.js';
+import { armchair, counter, floor, hallWindow, questBoard, rug, shelf, sofa, stool, wall } from './assets/hall.js';
 import { plant } from './assets/plant.js';
 
 // 固定的資產樣本：黃金指紋測試與目錄都用這份清單。
@@ -19,6 +19,9 @@ export const CASES = [
   { name: 'hall-stool', asset: stool },
   { name: 'hall-sofa', asset: sofa },
   { name: 'hall-armchair', asset: armchair },
+  { name: 'hall-window', asset: hallWindow },
+  { name: 'hall-quest-board', asset: questBoard },
+  { name: 'hall-rug', asset: rug },
   ...[1, 11, 12, 13, 14].flatMap(userId => ['working', 'resting'].map(status => ({
     name: `character-${userId}-${status}`, asset: character, variant: { ...lookIndices(userId), status },
   }))),

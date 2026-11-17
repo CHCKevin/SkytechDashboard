@@ -1,5 +1,5 @@
 import { generator } from './random.js';
-import { EYE, OUTLINE, RAMPS, SHADOW } from './style.js';
+import { EYE, OUTLINE, PALETTE, RAMPS, SHADOW } from './style.js';
 
 // 像素產生引擎：把資產定義（字元格樣板＋圖例）變成索引像素格。
 // 純函式，不碰 DOM、不讀檔，瀏覽器、Node 工具與測試共用。
@@ -133,11 +133,13 @@ export function flatten({ body, shadow }) {
 }
 
 // 像素內容的指紋（FNV-1a 32 位元），用於黃金測試與目錄的「是否有變更」。
+// 依實際顏色（不是調色盤索引）計算，所以調色盤加入新顏色、索引位移時，外觀沒變的資產指紋也不變。
 export function fingerprint({ width, height, body, shadow }) {
   let hash = 0x811c9dc5;
   const feed = value => { hash = Math.imul(hash ^ value, 0x01000193) >>> 0; };
+  const color = index => (index ? parseInt(PALETTE[index].slice(1), 16) + 1 : 0);
   [width, height].forEach(feed);
-  body.forEach(feed);
-  (shadow ?? []).forEach(feed);
+  body.forEach(index => feed(color(index)));
+  (shadow ?? []).forEach(index => feed(color(index)));
   return hash.toString(16).padStart(8, '0');
 }

@@ -1,5 +1,5 @@
 import { chair, table } from '../art/assets/furniture.js';
-import { armchair, counter, floor, shelf, sofa, stool, wall } from '../art/assets/hall.js';
+import { armchair, counter, floor, hallWindow, questBoard, rug, shelf, sofa, stool, wall } from '../art/assets/hall.js';
 import { plant } from '../art/assets/plant.js';
 import { compose, render } from '../art/engine.js';
 import { toArt } from '../art/svg.js';
@@ -25,6 +25,12 @@ export function backgroundPlacements() {
   return [
     { result: render(floor), x: 0, y: 0, ground: true },
     { result: render(wall), x: 0, y: 0, ground: true },
+    // 地毯是地面的一部分：家具的落影會畫在地毯上。
+    { result: render(rug), x: 134, y: 110, ground: true },
+    // 牆上：窗戶、任務板、窗戶。
+    { result: render(hallWindow), x: 118, y: 1 },
+    { result: render(questBoard), x: 146, y: 1 },
+    { result: render(hallWindow), x: 192, y: 1 },
     { result: render(shelf), x: 14, y: 1 },
     { result: render(counter, { seed: 2 }), x: 4, y: 10 },
     { result: render(plant, { variant: { leaf: 'bush' } }), x: 124, y: 28 },

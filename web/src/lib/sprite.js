@@ -1,6 +1,6 @@
 import { lookIndices, renderFrames } from '../art/assets/character.js';
 import { flatten } from '../art/engine.js';
-import { EYE, PALETTE } from '../art/style.js';
+import { EYE, OUTLINE, PALETTE, RAMPS } from '../art/style.js';
 import { toArt } from '../art/svg.js';
 
 // 大廳角色的造型：由使用者編號固定算出，畫法在 web/src/art（像素引擎與 assets/character.js）。
@@ -39,7 +39,10 @@ function iconArt(rows, colors) {
   });
   return { width: rows[0].length, height: rows.length, rects };
 }
-const ICON_COLORS = { X: '#2b1a0e', M: '#7d8791', T: '#8a5a35', Z: '#2f6fc0' };
+// 顏色取自像素調色盤：X 外框色、M 金屬、T 木頭、Z 藍色衣服。
+const ICON_COLORS = {
+  X: PALETTE[OUTLINE], M: PALETTE[RAMPS.metal[0]], T: PALETTE[RAMPS.wood_oak[2]], Z: PALETTE[RAMPS.cloth1[0]],
+};
 export const STATUS_ICONS = {
   // 槌子
   working: iconArt(['.MMMMM.', '.MMMMM.', '.MMMMM.', '...T...', '...T...', '...T...', '...T...'], ICON_COLORS),

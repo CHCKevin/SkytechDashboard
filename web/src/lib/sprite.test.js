@@ -82,3 +82,9 @@ test('working and idle sprites have two frames, resting has one; every facing wo
   }
   expect(spriteFor(18, 'working', 'back')).not.toEqual(spriteFor(18, 'working', 'front'));
 });
+test('status icons use colors from the pixel palette', async () => {
+  const { PALETTE } = await import('../art/style.js');
+  for (const icon of Object.values(STATUS_ICONS)) {
+    for (const rect of icon.rects) expect(PALETTE).toContain(rect.color);
+  }
+});

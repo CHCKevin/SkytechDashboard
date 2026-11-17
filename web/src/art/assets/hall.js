@@ -121,3 +121,85 @@ const sofaBase = {
 };
 export const sofa = { ...sofaBase, id: 'hall/sofa', size: [58, 24], anchor: [29, 21], rows: sofaRows(3) };
 export const armchair = { ...sofaBase, id: 'hall/armchair', size: [26, 24], anchor: [13, 21], rows: sofaRows(1) };
+
+// 窗戶 22×16：木框、十字窗櫺、玻璃左上有反光，下緣是窗台。掛在牆上。
+// 圖例：L 木亮 m 木 d 木暗｜g 玻璃亮 G 玻璃 b 玻璃暗
+export const hallWindow = {
+  id: 'hall/window',
+  version: 1,
+  size: [22, 16],
+  anchor: [11, 14],
+  maxColors: 8,
+  legend: {
+    L: ['wood_oak', 3], m: ['wood_oak', 1], d: ['wood_oak', 0],
+    g: ['glass', 2], G: ['glass', 1], b: ['glass', 0],
+  },
+  rows: [
+    blank(22),
+    line('L', 22),
+    '.dggggggggmmggggggggd.',
+    '.dgGGGGGGGmmgGGGGGGGd.',
+    '.dgGGGGGGGmmgGGGGGGGd.',
+    '.dGGGGGGGGmmGGGGGGGGd.',
+    '.dGGGGGGGGmmGGGGGGGGd.',
+    line('m', 22),
+    '.dggggggggmmggggggggd.',
+    '.dgGGGGGGGmmgGGGGGGGd.',
+    '.dGGGGGGGGmmGGGGGGGGd.',
+    '.dGGGGGGbbmmGGGGGGbbd.',
+    '.dbbbbbbbbmmbbbbbbbbd.',
+    line('L', 22),
+    line('d', 22),
+    blank(22),
+  ],
+};
+
+// 任務板 40×18：木框軟木板，釘著四張任務單（紅色圖釘、幾行字），高低錯開。這是冒險者公會的招牌物件。
+// 圖例：L 木亮 d 木暗｜c 軟木｜P 紙 p 紙暗（字與下緣）｜r 圖釘
+const NOTE = ['PPrrPP', 'PPPPPP', 'PppppP', 'PPPPPP', 'PpppPP', 'PPPPPP', 'pppppp'];
+export const questBoard = {
+  id: 'hall/quest-board',
+  version: 1,
+  size: [40, 18],
+  anchor: [20, 16],
+  maxColors: 8,
+  legend: {
+    L: ['wood_oak', 3], d: ['wood_oak', 0], c: ['wood_walnut', 2],
+    P: ['paper', 1], p: ['paper', 0], r: ['cloth0', 1],
+  },
+  rows: (() => {
+    const rows = [blank(40), line('L', 40), ...Array(14).fill(`.d${'c'.repeat(36)}d.`), line('d', 40), blank(40)];
+    // 每張任務單的左上角：[x, y]
+    for (const [x, top] of [[4, 4], [13, 6], [22, 3], [30, 7]]) {
+      NOTE.forEach((note, i) => { rows[top + i] = rows[top + i].slice(0, x) + note + rows[top + i].slice(x + 6); });
+    }
+    return rows;
+  })(),
+};
+
+// 地毯 72×24：鋪在沙發區的地上（畫在地面層，所以在家具與落影之下）。紅色邊、金色線、藍底與金色菱形。
+// 圖例：f 邊｜y 金線｜B 底｜Y 菱形
+export const rug = {
+  id: 'hall/rug',
+  version: 1,
+  size: [72, 24],
+  anchor: [36, 22],
+  maxColors: 6,
+  legend: { f: ['fabric', 0], y: ['accent4', 0], B: ['cloth1', 0], Y: ['accent4', 1] },
+  rows: (() => {
+    const field = y => Array.from({ length: 66 }, (_, i) => {
+      const x = i + 3;
+      const inDiamond = [12, 24, 36, 48, 60].some(cx => Math.abs(x - cx) + Math.abs(y - 12) <= 3);
+      return inDiamond ? 'Y' : 'B';
+    }).join('');
+    return [
+      blank(72),
+      line('f', 72),
+      `.f${'y'.repeat(68)}f.`,
+      ...Array.from({ length: 18 }, (_, i) => `.fy${field(i + 3)}yf.`),
+      `.f${'y'.repeat(68)}f.`,
+      line('f', 72),
+      blank(72),
+    ];
+  })(),
+};

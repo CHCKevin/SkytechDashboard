@@ -1,6 +1,6 @@
 // 像素風格規格：調色盤、色階與規則。數字的依據見 docs/pixel-art/03-style-specification.md。
 // 調色盤或規則改變時要把 STYLE_VERSION 加一，並重新產生 golden.json。
-export const STYLE_VERSION = 1;
+export const STYLE_VERSION = 2;
 
 export const RULES = {
   tile: 16,
@@ -44,6 +44,9 @@ export const RAMP_DEFS = {
   metal: [[215, 16, 46], [210, 10, 66], [45, 8, 88]],
   leaf: [[160, 60, 30], [140, 58, 46], [120, 52, 62], [100, 42, 76]],
   clay: [[8, 60, 44], [16, 58, 62], [24, 46, 78]],
+  // v2：窗戶玻璃、任務板上的紙張。
+  glass: [[208, 42, 58], [200, 32, 76], [192, 18, 92]],
+  paper: [[38, 26, 78], [44, 16, 92], [50, 8, 98]],
 };
 
 // 外框不用純黑，與介面的 --ink 相同；落影比地板最暗階再暗一階。
