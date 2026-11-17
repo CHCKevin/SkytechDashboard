@@ -77,9 +77,9 @@ const scenes = [
     note: '人坐在椅子上（椅子畫在人之下，正面幾乎被身體擋住；空位時才看得到整張椅子）：工作中、休息',
     image: compose(48, 40, [
       { result: render(chair), x: 6, y: 22 },
-      { result: renderCharacter(11), x: 4, y: 13 },
+      { result: renderCharacter(11), x: 4, y: 14 },
       { result: render(chair, { variant: { wood: 'wood_walnut' } }), x: 30, y: 22 },
-      { result: renderCharacter(13, 'resting'), x: 28, y: 13 },
+      { result: renderCharacter(13, 'resting'), x: 28, y: 14 },
     ]),
   },
   {

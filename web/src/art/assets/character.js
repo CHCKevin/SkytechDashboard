@@ -2,6 +2,7 @@ import { render } from '../engine.js';
 import { generator } from '../random.js';
 
 // 坐姿人物，16×24，正面。外框由引擎自動加上，所以四周留一格空白。
+// 坐姿的線索：手放在大腿上、膝蓋張開、小腿短；坐在椅子上時，兩腿之間會露出椅面。
 // 圖例：H 髮 h 髮暗 I 髮亮｜S 膚 s 膚暗｜E 眼｜C 衣 c 衣暗 D 衣亮｜A 配件 a 配件暗｜P 褲 p 褲暗｜B 靴 b 靴暗
 const BASE = [
   '................',
@@ -20,13 +21,13 @@ const BASE = [
   '.ccCCCDDDDCCCcc.',
   '.cCCCCCCCCCCCCc.',
   '.cCCCCCCCCCCCCc.',
-  '.SCCCCCCCCCCCCS.',
-  '..PPPPPPPPPPPP..',
-  '..pPPPPPPPPPPp..',
-  '...PPPp..pPPP...',
-  '...PPPp..pPPP...',
-  '...BBBb..bBBB...',
-  '...BBBB..BBBB...',
+  '.SPPPPPPPPPPPPS.',
+  '.pPPPPPPPPPPPPp.',
+  '..pPPp....pPPp..',
+  '..pPPp....pPPp..',
+  '.BBBBb....bBBBB.',
+  '.BBBBB....BBBBB.',
+  '................',
   '................',
 ];
 
@@ -95,9 +96,10 @@ function put(rows, y, x, char) {
 
 export const character = {
   id: 'character/seated',
-  version: 1,
+  // v2：腿改成膝蓋張開、手放在大腿上的坐姿，人物變矮一列，腳底錨點上移。
+  version: 2,
   size: [16, 24],
-  anchor: [8, 22],
+  anchor: [8, 21],
   maxColors: 18,
   shadow: false,
   legend: {
