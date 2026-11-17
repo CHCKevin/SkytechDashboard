@@ -7,7 +7,9 @@ import { character, renderCharacter } from '../../web/src/art/assets/character.j
 import { chair, table } from '../../web/src/art/assets/furniture.js';
 import { plant } from '../../web/src/art/assets/plant.js';
 import { CASES, renderCase } from '../../web/src/art/cases.js';
-import { fingerprint, flatten, render } from '../../web/src/art/engine.js';
+import { compose, fingerprint, flatten, render } from '../../web/src/art/engine.js';
+import { backgroundPlacements, frontPlacements } from '../../web/src/lib/hall-art.js';
+import { SCENE_SIZE, SEAT_GROUPS, SEAT_SPOTS, assignSeats } from '../../web/src/lib/seats.js';
 import { PALETTE, RAMPS, STYLE_VERSION } from '../../web/src/art/style.js';
 import { validate } from '../../web/src/art/validate.js';
 import { encodeIndexedPng } from './png.mjs';
@@ -23,22 +25,6 @@ mkdirSync(outDir, { recursive: true });
 for (const name of readdirSync(outDir)) rmSync(`${outDir}${name}`, { recursive: true, force: true });
 
 const writePng = (name, image) => writeFileSync(`${outDir}${name}.png`, encodeIndexedPng(image, PALETTE));
-
-// 把多個結果疊成一張圖：先畫所有落影，再依順序畫物件本體（後面的蓋住前面的）。
-function compose(width, height, placements) {
-  const pixels = new Uint8Array(width * height);
-  const paint = (layer, result, ox, oy) => {
-    if (!layer) return;
-    layer.forEach((value, i) => {
-      const x = ox + (i % result.width);
-      const y = oy + Math.floor(i / result.width);
-      if (value && x >= 0 && x < width && y >= 0 && y < height) pixels[y * width + x] = value;
-    });
-  };
-  for (const { result, x, y } of placements) paint(result.shadow, result, x, y);
-  for (const { result, x, y } of placements) paint(result.body, result, x, y);
-  return { width, height, pixels };
-}
 
 const entries = CASES.map(c => {
   const result = renderCase(c);
@@ -61,7 +47,30 @@ const entries = CASES.map(c => {
 });
 
 // 組合預覽：人坐在桌子後方、人坐在椅子上、空椅子、盆栽。
+// 整個大廳：16 位成員（使用者 1–16，三種狀態輪流），依實際的位子分配與圖層順序。
+const hallMembers = Array.from({ length: 16 }, (_, i) => ({ userId: i + 1, status: ['working', 'idle', 'resting'][i % 3] }));
+const seated = assignSeats(hallMembers);
+const hallPlacements = [
+  ...backgroundPlacements(),
+  ...SEAT_GROUPS.flatMap(group => [
+    ...group.seats.filter(id => seated[id]).map(id => ({
+      result: renderCharacter(seated[id].userId, seated[id].status), x: SEAT_SPOTS[id][0], y: SEAT_SPOTS[id][1],
+    })),
+    ...frontPlacements(group.name),
+  ]),
+];
+
 const scenes = [
+  {
+    name: 'hall-full',
+    note: '整個大廳，16 位成員坐滿（不含名牌與狀態圖示，那些由網頁另外畫）',
+    image: compose(SCENE_SIZE[0], SCENE_SIZE[1], hallPlacements),
+  },
+  {
+    name: 'hall-empty',
+    note: '空的大廳：吧檯高腳椅、工作桌椅背、沙發都看得到',
+    image: compose(SCENE_SIZE[0], SCENE_SIZE[1], [...backgroundPlacements(), ...SEAT_GROUPS.flatMap(group => frontPlacements(group.name))]),
+  },
   {
     name: 'scene-table',
     note: '人坐在桌子後方（桌子畫在人之上）、盆栽、空椅子',

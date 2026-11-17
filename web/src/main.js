@@ -1,4 +1,5 @@
 import './styles/pixel.css';
+import './styles/seats.css';
 import { mount } from 'svelte';
 import App from './App.svelte';
 

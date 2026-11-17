@@ -4,7 +4,7 @@
 目前階段：
 - 第一階段（My time tracking 任務布告欄）已完成實作與驗證，並已合併到 `develop`（PR #1，分支 `feature/quest-board` 已刪除）。
 - 第二階段（公會大廳）已完成實作與驗證，已合併到 `develop`（PR #2）。
-- 第三階段（像素畫面優化）：研究與規格完成；使用者採用全部建議值。像素引擎與四個原型資產（人物、木椅、木桌、盆栽）與預覽目錄已完成，位於 `feature/pixel-art-research`，**等使用者審查目錄**，通過後才換上大廳。
+- 第三階段（像素畫面優化）：研究、像素引擎、原型資產審查（使用者通過）、換上大廳（第 3 階段）都已完成，位於 `feature/pixel-art-research`，只在本機，尚未推送。下一步是第 4 階段動畫。
 
 ## 專案方向
 
@@ -30,6 +30,7 @@
 | 示例模式（不需 token） | `npm run demo` → http://127.0.0.1:4173/ |
 | 即時模式（連公司 OpenProject） | `npm start`（讀 `config/local.json`） |
 | 前端開發 | 一個終端機 `npm run demo`（或 `npm start`），另一個 `npm run dev:web` → http://127.0.0.1:5173/ |
+| 大廳位子的 CSS | `npm run art:seats`（改了 `web/src/lib/seats.js` 的 SEAT_SPOTS 後執行，產生 `web/src/styles/seats.css`） |
 | 像素資產目錄 | `npm run art:catalog` → 開 `art-out/index.html`；加 `-- --update-golden` 會更新黃金指紋 |
 | 測試 | `npm test`（後端 node --test ＋ 前端 Vitest）；`npm run test:server`、`npm run test:web` 可分開跑 |
 
@@ -58,7 +59,8 @@
   - `server/hall-status.mjs`：狀態判定純函式。當日有請假 work package 的工時 → 休息；沒有工時 → 發呆；其餘 → 工作中。
   - 來源新增 `searchUsers`、`getUser`、`listEntriesForUsers`，都是 GET。全員當日工時以一次查詢取回。
   - 前端：`App.svelte` 只管頁籤、日期與橫幅；`QuestTab.svelte` 是第一階段的全部內容；`HallTab.svelte` 負責讀取、每 5 分鐘自動更新與選取。座位分配在 `web/src/lib/seats.js`，造型在 `web/src/lib/sprite.js`（由使用者編號固定算出）。
-- 像素引擎（`web/src/art/`，純 JavaScript，瀏覽器與 Node 共用）：`style.js` 調色盤與色階、`engine.js` 上色／木紋／外框／落影、`validate.js` 自動檢查、`assets/` 字元格樣板、`golden.json` 黃金指紋。開發工具在 `tools/art/`（索引色 PNG、目錄），輸出到被忽略的 `art-out/`。人物造型沿用 `lookFor` 的抽選，換畫法後每個人的造型類型不變。
+- 像素引擎（`web/src/art/`，純 JavaScript，瀏覽器與 Node 共用）：`style.js` 調色盤與色階、`engine.js` 上色／木紋／外框／落影、`validate.js` 自動檢查、`assets/` 字元格樣板、`golden.json` 黃金指紋。開發工具在 `tools/art/`（索引色 PNG、目錄），輸出到被忽略的 `art-out/`。人物造型沿用 `lookFor` 的抽選，換畫法後每個人的造型類型不變（`looks-v1.json` 鎖住第二階段的結果）。
+- 大廳場景：原生 220×144，`--px` 決定倍率（桌面 3 倍、窄螢幕 2 倍可捲動）。`lib/hall-art.js` 組出背景與各排前方的桌子；`HallScene.svelte` 依排輸出「角色按鈕 → 桌子」。角色只畫正面，位子都在家具後方或上面。名牌只在指向、聚焦、選取時顯示。
 - `web/`：Svelte 5 + Vite。`web/src/lib/api.js` 是唯一呼叫 `/api` 的模組。元件不得使用 inline style、`style:` 或 `transition:`（會違反 CSP）。
 - 字型：俐方體11號 Cubic 11（SIL OFL 1.1），設計格線 12px，字級只用 12px／24px。
 
@@ -92,6 +94,6 @@
 
 ## 下一步候選
 
-- 像素畫面優化：使用者審查 `art-out/index.html`（`npm run art:catalog` 產生）後，依意見修樣板，再進第 3 階段換上大廳。
+- 像素畫面優化：第 4 階段動畫（工作中、發呆 2 幀，支援減少動態效果，含圖集匯出與 A11、A12、A15 測試），再來是第 5 階段其餘裝飾。
 - 大廳後續候選：自訂造型、拖曳換位子、走路或工作動畫、超過 16 人、週檢視。
 - 任務欄後續候選：週曆／月曆檢視、計時器模式、常駐任務排序、多人內網部署。

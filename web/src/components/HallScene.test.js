@@ -59,3 +59,17 @@ test('the scene uses no inline styles (CSP)', () => {
   const { container } = render(HallScene, { members, selectedId: 12, onselect: vi.fn() });
   expect(container.innerHTML).not.toMatch(/style=/);
 });
+test('layers stack as background, then each row of members followed by the tables in front of that row', () => {
+  const { container } = render(HallScene, { members, onselect: vi.fn() });
+  const scene = container.querySelector('.scene');
+  const order = [...scene.children].map(node => (node.matches('svg')
+    ? (node.classList.contains('scene-front') ? 'front' : 'background')
+    : node.getAttribute('data-seat')));
+  expect(order[0]).toBe('background');
+  expect(order.filter(item => item === 'front')).toHaveLength(2);
+  // 第一張桌子圖層在上排工作桌之後、下排工作桌之前。
+  const firstFront = order.indexOf('front');
+  expect(firstFront).toBeGreaterThan(order.indexOf('desk-4'));
+  expect(firstFront).toBeLessThan(order.indexOf('desk-5'));
+  for (const layer of scene.querySelectorAll(':scope > svg')) expect(layer.getAttribute('aria-hidden')).toBe('true');
+});

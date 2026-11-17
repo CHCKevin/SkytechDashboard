@@ -1,13 +1,15 @@
 <script>
+  import { sceneArt } from '../lib/hall-art.js';
   import { shortName } from '../lib/names.js';
-  import { assignSeats } from '../lib/seats.js';
+  import { SEAT_GROUPS, assignSeats } from '../lib/seats.js';
   import { STATUS_ICONS, STATUS_LABELS, spriteFor } from '../lib/sprite.js';
   import PixelArt from './PixelArt.svelte';
 
   // 大廳場景：吧檯 5 位、工作桌 7 位、沙發 4 位。成員坐哪裡由 assignSeats 依狀態偏好決定。
+  // 畫面由下往上疊：背景（地板、牆、吧檯、椅子、沙發）→ 每一排的角色 → 該排前方的桌子。
   let { members, selectedId = null, onselect } = $props();
   const seats = $derived(assignSeats(members));
-  const numbered = (zone, numbers) => numbers.map(number => `${zone}-${number}`);
+  const art = sceneArt();
 </script>
 
 {#snippet seat(id)}
@@ -25,29 +27,9 @@
 {/snippet}
 
 <section class="scene" aria-label="公會大廳">
-  <div class="zone-bar">
-    <div class="shelf" aria-hidden="true">
-      {#each [1, 2, 3, 1, 2, 3, 1, 2] as kind, index (index)}<i class={`bottle bottle-${kind}`}></i>{/each}
-    </div>
-    <div class="counter" aria-hidden="true"></div>
-    <div class="stools">
-      {#each numbered('bar', [1, 2, 3, 4, 5]) as id (id)}{@render seat(id)}{/each}
-    </div>
-  </div>
-  <div class="scene-lower">
-    <div class="zone-desk">
-      {#each numbered('desk', [1, 2, 5]) as id (id)}{@render seat(id)}{/each}
-      <div class="seat-gap" aria-hidden="true"></div>
-      <div class="table table-4" aria-hidden="true"></div>
-      <div class="table" aria-hidden="true"></div>
-      <div class="table" aria-hidden="true"></div>
-      {#each numbered('desk', [3, 4, 6, 7]) as id (id)}{@render seat(id)}{/each}
-    </div>
-    <div class="zone-sofa">
-      <div class="sofa sofa-long">
-        {#each numbered('sofa', [1, 2, 3]) as id (id)}{@render seat(id)}{/each}
-      </div>
-      <div class="sofa sofa-single">{@render seat('sofa-4')}</div>
-    </div>
-  </div>
+  <PixelArt art={art.background} class="scene-layer" />
+  {#each SEAT_GROUPS as group (group.name)}
+    {#each group.seats as id (id)}{@render seat(id)}{/each}
+    {#if art.fronts[group.name]}<PixelArt art={art.fronts[group.name]} class="scene-layer scene-front" />{/if}
+  {/each}
 </section>

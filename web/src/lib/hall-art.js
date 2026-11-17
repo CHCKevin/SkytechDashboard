@@ -10,8 +10,8 @@ import { SCENE_SIZE, SEAT_GROUPS, SEAT_SPOTS } from './seats.js';
 
 const seatsOf = prefix => Object.entries(SEAT_SPOTS).filter(([id]) => id.startsWith(prefix)).map(([, spot]) => spot);
 
-// 每排前方的桌子（左上角座標）：工作桌的角色坐在桌子後方，桌子頂面蓋住胸口以下。
-const TABLES = { upper: [[6, 70], [62, 70]], lower: [[6, 108], [62, 108]] };
+// 每排前方的桌子（左上角座標）：工作桌的角色坐在桌子後方，桌面比角色圖低 17 格，露出頭和肩膀。
+const TABLES = { upper: [[6, 73], [62, 73]], lower: [[6, 111], [62, 111]] };
 
 export function backgroundPlacements() {
   return [
