@@ -5,7 +5,7 @@
   import { STATUS_ICONS, STATUS_LABELS, spriteFor } from '../lib/sprite.js';
   import PixelArt from './PixelArt.svelte';
 
-  // 大廳場景：吧檯 6 位、工作桌 20 位、沙發 5 位。成員坐哪裡由 assignSeats 依狀態偏好決定，
+  // 大廳場景：吧檯 6 位、工作桌 20 位、沙發 6 位（L 型沙發 4 位、單人沙發 2 位）。成員坐哪裡由 assignSeats 依狀態偏好決定，
   // 角色面向哪裡由位子決定（例如吧檯面向吧檯，看到背面）。
   // 畫面由下往上疊：背景（地板、牆、吧檯、椅子、沙發）→ 每一排的角色 → 該排的桌子 → 下一排……
   // 動畫：工作中、發呆兩幀輪流（pixel.css 的 anim-*）；delay-* 讓大家不要同步晃動。

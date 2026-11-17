@@ -28,5 +28,6 @@
 .seat[data-seat='sofa-1'] { left: calc(var(--px) * 139); top: calc(var(--px) * 48); }
 .seat[data-seat='sofa-2'] { left: calc(var(--px) * 155); top: calc(var(--px) * 48); }
 .seat[data-seat='sofa-3'] { left: calc(var(--px) * 171); top: calc(var(--px) * 48); }
-.seat[data-seat='sofa-4'] { left: calc(var(--px) * 141); top: calc(var(--px) * 92); }
-.seat[data-seat='sofa-5'] { left: calc(var(--px) * 181); top: calc(var(--px) * 92); }
+.seat[data-seat='sofa-4'] { left: calc(var(--px) * 184); top: calc(var(--px) * 62); }
+.seat[data-seat='sofa-5'] { left: calc(var(--px) * 141); top: calc(var(--px) * 92); }
+.seat[data-seat='sofa-6'] { left: calc(var(--px) * 181); top: calc(var(--px) * 92); }

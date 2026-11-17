@@ -1,16 +1,18 @@
 import { expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { HALL_CAPACITY, SCENE_SIZE, SEAT_GROUPS, SEAT_IDS, SEAT_SPOTS, assignSeats, seatsCss } from './seats.js';
+import { spriteFor } from './sprite.js';
+import { OUTLINE, PALETTE } from '../art/style.js';
 
 let nextId = 1;
 const make = (status, count = 1) => Array.from({ length: count }, () => ({ userId: nextId++, status }));
 const seatOf = (seats, member) => Object.keys(seats).find(seat => seats[seat] === member);
 
-test('there are 31 seats: 6 at the bar, 20 at desks, 5 on sofas', () => {
-  expect(SEAT_IDS).toHaveLength(31);
+test('there are 32 seats: 6 at the bar, 20 at desks, 6 on sofas', () => {
+  expect(SEAT_IDS).toHaveLength(32);
   expect(SEAT_IDS.filter(seat => seat.startsWith('bar-'))).toHaveLength(6);
   expect(SEAT_IDS.filter(seat => seat.startsWith('desk-'))).toHaveLength(20);
-  expect(SEAT_IDS.filter(seat => seat.startsWith('sofa-'))).toHaveLength(5);
+  expect(SEAT_IDS.filter(seat => seat.startsWith('sofa-'))).toHaveLength(6);
 });
 test('no members means no seats taken', () => {
   expect(assignSeats([])).toEqual({});
@@ -36,15 +38,15 @@ test('idle members overflow from the bar to sofas', () => {
   expect(idlers.map(member => seatOf(seats, member))).toEqual(['bar-1', 'bar-2', 'bar-3', 'bar-4', 'bar-5', 'bar-6', 'sofa-1']);
 });
 test('resting members overflow from sofas to the bar', () => {
-  const resters = make('resting', 6);
+  const resters = make('resting', 7);
   const seats = assignSeats(resters);
-  expect(resters.map(member => seatOf(seats, member))).toEqual(['sofa-1', 'sofa-2', 'sofa-3', 'sofa-4', 'sofa-5', 'bar-1']);
+  expect(resters.map(member => seatOf(seats, member))).toEqual(['sofa-1', 'sofa-2', 'sofa-3', 'sofa-4', 'sofa-5', 'sofa-6', 'bar-1']);
 });
 test('resting members are seated before idle ones, whatever the input order', () => {
   const idlers = make('idle', 7);
-  const resters = make('resting', 5);
+  const resters = make('resting', 6);
   const seats = assignSeats([...idlers, ...resters]);
-  expect(resters.map(member => seatOf(seats, member))).toEqual(['sofa-1', 'sofa-2', 'sofa-3', 'sofa-4', 'sofa-5']);
+  expect(resters.map(member => seatOf(seats, member))).toEqual(['sofa-1', 'sofa-2', 'sofa-3', 'sofa-4', 'sofa-5', 'sofa-6']);
   expect(seatOf(seats, idlers[6])).toBe('desk-1');
 });
 test('a full hall seats everyone in a different seat', () => {
@@ -60,7 +62,7 @@ test('the same input always gives the same seats', () => {
 test('members beyond the 16 seats are left out', () => {
   const members = make('working', 33);
   const seats = assignSeats(members);
-  expect(Object.keys(seats)).toHaveLength(31);
+  expect(Object.keys(seats)).toHaveLength(32);
   expect(seatOf(seats, members[32])).toBeUndefined();
 });
 test('the hall holds 16 members, and any 16 members always get a seat', () => {
@@ -73,6 +75,8 @@ test('every seat faces a direction the character can be drawn in', () => {
   for (const { facing } of Object.values(SEAT_SPOTS)) expect(['front', 'back', 'left', 'right']).toContain(facing);
   expect(SEAT_SPOTS['bar-1'].facing).toBe('back');
   expect(SEAT_SPOTS['sofa-1'].facing).toBe('front');
+  // L 型沙發的側座面向左邊。
+  expect(SEAT_SPOTS['sofa-4'].facing).toBe('left');
 });
 test('every seat has a spot inside the scene and belongs to exactly one row group', () => {
   const grouped = SEAT_GROUPS.flatMap(group => group.seats);
@@ -86,16 +90,31 @@ test('every seat has a spot inside the scene and belongs to exactly one row grou
   }
 });
 test('the visible parts of characters never overlap each other', () => {
-  const spots = Object.entries(SEAT_SPOTS);
-  // 角色本體在 16×24 圖的第 1–14 欄、第 1–21 列；坐在桌後（工作桌、正面）的人，第 17 列以下被桌子擋住。
-  const box = ([id, { x, y, facing }]) => {
+  // 每個方向的輪廓：使用者 1–60、所有狀態與動畫幀畫到的格子的聯集。外框可以互相貼著（例如桌前的人的鞋子
+  // 與下一排的人的頭頂），所以不算外框色。
+  const outline = PALETTE[OUTLINE];
+  const silhouette = {};
+  for (const facing of ['front', 'back', 'left', 'right']) {
+    const cells = new Set();
+    for (let id = 1; id <= 60; id += 1) {
+      for (const status of ['working', 'idle', 'resting']) {
+        for (const frame of spriteFor(id, status, facing).frames) {
+          for (const { x, y, w, color } of frame) {
+            if (color !== outline) for (let i = 0; i < w; i += 1) cells.add(`${x + i},${y}`);
+          }
+        }
+      }
+    }
+    silhouette[facing] = [...cells].map(cell => cell.split(',').map(Number));
+  }
+  // 坐在桌後（工作桌、正面）的人，第 17 列以下被桌子擋住。
+  const cellsOf = ([id, { x, y, facing }]) => {
     const behindTable = id.startsWith('desk-') && facing === 'front';
-    return [x + 1, y + 1, x + 15, y + (behindTable ? 17 : 22)];
+    return new Set(silhouette[facing].filter(([, cy]) => !behindTable || cy < 17).map(([cx, cy]) => `${x + cx},${y + cy}`));
   };
-  spots.forEach((a, i) => spots.slice(i + 1).forEach(b => {
-    const [ax1, ay1, ax2, ay2] = box(a);
-    const [bx1, by1, bx2, by2] = box(b);
-    expect([a[0], b[0], ax1 < bx2 && bx1 < ax2 && ay1 < by2 && by1 < ay2]).toEqual([a[0], b[0], false]);
+  const spots = Object.entries(SEAT_SPOTS).map(spot => [spot[0], cellsOf(spot)]);
+  spots.forEach(([a, cellsA], i) => spots.slice(i + 1).forEach(([b, cellsB]) => {
+    expect([a, b, [...cellsA].some(cell => cellsB.has(cell))]).toEqual([a, b, false]);
   }));
 });
 test('styles/seats.css is generated from the seat spots', () => {

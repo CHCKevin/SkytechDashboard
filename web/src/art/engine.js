@@ -43,7 +43,7 @@ export function render(asset, { variant: requested, seed = 0 } = {}) {
     anchor: { x, y },
     // 地板、牆這類鋪滿整張圖的資產不加外框（asset.outline === false）。
     body: asset.outline === false ? body : addOutline(body, width, height),
-    shadow: asset.shadow ? castShadow(width, height, x, maxX - minX + 1) : null,
+    shadow: asset.shadow ? castShadow(width, height, x, maxX - minX + 1, asset.shadow) : null,
   };
 }
 
@@ -95,15 +95,19 @@ function addOutline(body, width, height) {
 }
 
 // 落影：寬度約為物件的 3/4，置中在錨點，貼著圖的最下緣。寬的物件 3 列，窄的 2 列。
-function castShadow(width, height, centerX, footprint) {
+// 形狀不是一個長方塊的物件（例如 L 型沙發）可以直接給落影的每一列：asset.shadow = [[x, y, 寬], ...]。
+function castShadow(width, height, centerX, footprint, spec) {
+  const shadow = new Uint8Array(width * height);
+  const paintRow = (start, y, rowWidth) => {
+    for (let x = Math.max(0, start); x < Math.min(width, start + rowWidth); x += 1) shadow[y * width + x] = SHADOW;
+  };
+  if (Array.isArray(spec)) {
+    for (const [x, y, rowWidth] of spec) paintRow(x, y, rowWidth);
+    return shadow;
+  }
   const size = Math.max(2, Math.round(footprint * 0.75));
   const widths = size >= 16 ? [size - 2, size, size - 2] : [size, size - 2];
-  const shadow = new Uint8Array(width * height);
-  widths.forEach((rowWidth, i) => {
-    const y = height - widths.length + i;
-    const start = Math.round(centerX - rowWidth / 2);
-    for (let x = Math.max(0, start); x < Math.min(width, start + rowWidth); x += 1) shadow[y * width + x] = SHADOW;
-  });
+  widths.forEach((rowWidth, i) => paintRow(Math.round(centerX - rowWidth / 2), height - widths.length + i, rowWidth));
   return shadow;
 }
 

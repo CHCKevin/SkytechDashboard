@@ -27,5 +27,6 @@ test('the scene is computed once', () => {
   expect(sceneArt()).toBe(sceneArt());
 });
 test('the background stays within a reasonable number of SVG rects', () => {
-  expect(sceneArt().background.rects.length).toBeLessThan(5000);
+  // 目前約 5150（L 型沙發之後）；上限只是防止場景意外暴增。
+  expect(sceneArt().background.rects.length).toBeLessThan(5500);
 });

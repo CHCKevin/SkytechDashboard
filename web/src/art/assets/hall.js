@@ -119,7 +119,45 @@ const sofaBase = {
   shadow: true,
   legend: { f: ['fabric', 0], F: ['fabric', 1], H: ['fabric', 2], d: ['wood_walnut', 0] },
 };
-export const sofa = { ...sofaBase, id: 'hall/sofa', size: [58, 24], anchor: [29, 21], rows: sofaRows(3) };
+// L 型沙發 68×41（v2）：左邊三個面向前方的座位（與一般沙發相同），右端轉角往前延伸一段側座，
+// 坐側座的人面向左邊。右側的靠背從上面看是一條（第 11–21 列），靠背前端的立面在第 22–35 列。
+// 欄位：1–4 左扶手｜5–52 三個座位｜53–60 轉角與側座座墊（53 是座墊左緣）｜61 接縫｜62–65 側靠背｜66 側靠背外緣。
+function cornerSofaRows() {
+  const seats = 48;
+  const seamed = (fill, seam) => Array.from({ length: seats }, (_, x) => (x > 0 && x % 16 === 0 ? seam : fill)).join('');
+  const none = '.'.repeat(53);
+  const legs = `..dd${'.'.repeat(45)}dd..`;
+  const side = (cushion, back) => `f${cushion.repeat(7)}f${back.repeat(4)}f.`;
+  return [
+    blank(68),
+    `..${'H'.repeat(64)}..`,
+    line('H', 68),
+    ...Array(8).fill(`.ffff${seamed('F', 'f')}f${'F'.repeat(12)}f.`),
+    `.ffff${'f'.repeat(seats)}${'f'.repeat(9)}HHHHf.`,
+    ...Array(2).fill(`.ffff${seamed('H', 'F')}${side('H', 'H')}`),
+    ...Array(5).fill(`.ffff${'F'.repeat(seats)}${side('H', 'H')}`),
+    `.${'f'.repeat(52)}${side('H', 'H')}`,
+    // 轉角座墊與側座之間的接縫
+    `${legs}${side('F', 'H')}`,
+    `${legs}${side('H', 'H')}`,
+    `${legs}${side('H', 'F')}`,
+    ...Array(8).fill(`${none}${side('H', 'F')}`),
+    ...Array(5).fill(`${none}f${'F'.repeat(12)}f.`),
+    `${none}${'f'.repeat(14)}.`,
+    ...Array(3).fill(`${none}.dd${'.'.repeat(8)}dd..`),
+    blank(68),
+  ];
+}
+export const sofa = {
+  ...sofaBase,
+  id: 'hall/sofa',
+  version: 2,
+  size: [68, 41],
+  anchor: [34, 39],
+  // 落影分兩段：三人座下方、側座下方。
+  shadow: [[10, 21, 38], [9, 22, 40], [10, 23, 38], [55, 38, 9], [54, 39, 11], [55, 40, 9]],
+  rows: cornerSofaRows(),
+};
 export const armchair = { ...sofaBase, id: 'hall/armchair', size: [26, 24], anchor: [13, 21], rows: sofaRows(1) };
 
 // 窗戶 22×16：木框、十字窗櫺、玻璃左上有反光，下緣是窗台。掛在牆上。

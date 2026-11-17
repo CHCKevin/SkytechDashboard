@@ -60,7 +60,7 @@
   - 來源新增 `searchUsers`、`getUser`、`listEntriesForUsers`，都是 GET。全員當日工時以一次查詢取回。
   - 前端：`App.svelte` 只管頁籤、日期與橫幅；`QuestTab.svelte` 是第一階段的全部內容；`HallTab.svelte` 負責讀取、每 5 分鐘自動更新與選取。座位分配在 `web/src/lib/seats.js`，造型在 `web/src/lib/sprite.js`（由使用者編號固定算出）。
 - 像素引擎（`web/src/art/`，純 JavaScript，瀏覽器與 Node 共用）：`style.js` 調色盤與色階、`engine.js` 上色／木紋／外框／落影、`validate.js` 自動檢查、`assets/` 字元格樣板、`golden.json` 黃金指紋。開發工具在 `tools/art/`（索引色 PNG、目錄），輸出到被忽略的 `art-out/`。人物造型沿用 `lookFor` 的抽選，換畫法後每個人的造型類型不變（`looks-v1.json` 鎖住第二階段的結果）。
-- 大廳場景：原生 220×160，`--px` 決定倍率（桌面 3 倍、窄螢幕 2 倍可捲動）。`lib/hall-art.js` 組出背景與各排前方的桌子；`HallScene.svelte` 依排輸出「角色按鈕 → 桌子」。座位 31 個（吧檯 6、工作桌 20、沙發 5），成員上限仍是 16。人物有正面、背面、左右側面：吧檯的人面向吧檯（背面），工作桌分桌後（正面）、桌頭（側面）、桌前（背面），沙發是正面。工作中與發呆各有兩幀動畫（CSS 切換，減少動態效果時停止）。桌面 3 倍、視窗 1179px 以下 2 倍。
+- 大廳場景：原生 220×160，`--px` 決定倍率（桌面 3 倍、窄螢幕 2 倍可捲動）。`lib/hall-art.js` 組出背景與各排前方的桌子；`HallScene.svelte` 依排輸出「角色按鈕 → 桌子」。座位 32 個（吧檯 6、工作桌 20、沙發 6），成員上限仍是 16。人物有正面、背面、左右側面：吧檯的人面向吧檯（背面），工作桌分桌後（正面）、桌頭（側面）、桌前（背面），沙發是正面，上方 L 型沙發的側座面向左。工作中與發呆各有兩幀動畫（CSS 切換，減少動態效果時停止）。桌面 3 倍、視窗 1179px 以下 2 倍。
 - `web/`：Svelte 5 + Vite。`web/src/lib/api.js` 是唯一呼叫 `/api` 的模組。元件不得使用 inline style、`style:` 或 `transition:`（會違反 CSP）。
 - 字型：俐方體11號 Cubic 11（SIL OFL 1.1），設計格線 12px，字級只用 12px／24px。
 
