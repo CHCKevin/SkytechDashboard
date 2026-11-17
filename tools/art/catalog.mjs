@@ -1,7 +1,7 @@
 // 像素資產目錄：npm run art:catalog
 // 產生 art-out/：每個樣本的原生大小 PNG、組合場景、16 人並排、catalog.json 與 index.html。
 // 加上 --update-golden 會把目前的指紋寫回 web/src/art/golden.json（刻意改外觀時才用）。
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { character, renderCharacter } from '../../web/src/art/assets/character.js';
 import { chair, table } from '../../web/src/art/assets/furniture.js';
@@ -18,8 +18,9 @@ const goldenPath = fileURLToPath(new URL('web/src/art/golden.json', root));
 const SCALES = [1, 2, 3];
 
 const golden = JSON.parse(readFileSync(goldenPath, 'utf8'));
-rmSync(outDir, { recursive: true, force: true });
+// 只清空內容、不刪資料夾：Windows 上資料夾被檔案總管或瀏覽器開著時刪不掉。
 mkdirSync(outDir, { recursive: true });
+for (const name of readdirSync(outDir)) rmSync(`${outDir}${name}`, { recursive: true, force: true });
 
 const writePng = (name, image) => writeFileSync(`${outDir}${name}.png`, encodeIndexedPng(image, PALETTE));
 
