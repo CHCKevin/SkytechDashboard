@@ -41,7 +41,8 @@ export function render(asset, { variant: requested, seed = 0 } = {}) {
     width,
     height,
     anchor: { x, y },
-    body: addOutline(body, width, height),
+    // 地板、牆這類鋪滿整張圖的資產不加外框（asset.outline === false）。
+    body: asset.outline === false ? body : addOutline(body, width, height),
     shadow: asset.shadow ? castShadow(width, height, x, maxX - minX + 1) : null,
   };
 }
@@ -104,6 +105,26 @@ function castShadow(width, height, centerX, footprint) {
     for (let x = Math.max(0, start); x < Math.min(width, start + rowWidth); x += 1) shadow[y * width + x] = SHADOW;
   });
   return shadow;
+}
+
+// 把多個結果疊成一張圖。placements：[{ result, x, y, ground? }]。
+// 順序：先畫地面（ground: true，例如地板與牆），再畫所有落影，最後依順序畫其他物件（後面的蓋住前面的）。
+export function compose(width, height, placements) {
+  const pixels = new Uint8Array(width * height);
+  const paint = (layer, result, ox, oy) => {
+    if (!layer) return;
+    layer.forEach((value, i) => {
+      const x = ox + (i % result.width);
+      const y = oy + Math.floor(i / result.width);
+      if (value && x >= 0 && x < width && y >= 0 && y < height) pixels[y * width + x] = value;
+    });
+  };
+  const ground = placements.filter(p => p.ground);
+  const objects = placements.filter(p => !p.ground);
+  for (const { result, x, y } of ground) paint(result.body, result, x, y);
+  for (const { result, x, y } of objects) paint(result.shadow, result, x, y);
+  for (const { result, x, y } of objects) paint(result.body, result, x, y);
+  return { width, height, pixels };
 }
 
 // 把物件畫在落影上面，得到單一張索引像素格（PNG 匯出與組合預覽用）。

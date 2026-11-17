@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fingerprint, flatten, render } from './engine.js';
+import { compose, fingerprint, flatten, render } from './engine.js';
 import { OUTLINE, RAMPS, SHADOW } from './style.js';
 import { validate } from './validate.js';
 
@@ -45,6 +45,46 @@ describe('render', () => {
   it('同樣的輸入輸出完全相同', () => {
     expect(fingerprint(render(tiny))).toBe(fingerprint(render(tiny)));
     expect(fingerprint(render(tiny))).not.toBe(fingerprint(render(tiny, { variant: { wood: 'wood_walnut' } })));
+  });
+});
+
+describe('outline: false', () => {
+  it('鋪滿的資產不加外框，驗證也不要求外框', () => {
+    const fill = { ...tiny, id: 'test/fill', outline: false, rows: Array(5).fill('mmmmm') };
+    const result = render(fill);
+    expect([...result.body].every(value => value === RAMPS.wood_oak[1])).toBe(true);
+    expect(validate(result, fill)).toEqual([]);
+  });
+});
+
+describe('compose', () => {
+  const dot = { ...tiny, id: 'test/dot', size: [3, 3], anchor: [1, 1], rows: ['...', '.m.', '...'] };
+  const floor = { ...tiny, id: 'test/floor', size: [6, 4], outline: false, rows: Array(4).fill('dddddd') };
+
+  it('地面先畫、物件依順序蓋上去、超出範圍的部分裁掉', () => {
+    const image = compose(6, 4, [
+      { result: render(dot), x: 4, y: 2 },
+      { result: render(floor), x: 0, y: 0, ground: true },
+      { result: render(dot, { variant: { wood: 'wood_walnut' } }), x: 0, y: 0 },
+    ]);
+    const px = (x, y) => image.pixels[y * 6 + x];
+    expect(px(1, 1)).toBe(RAMPS.wood_walnut[1]);
+    expect(px(5, 3)).toBe(RAMPS.wood_oak[1]);
+    expect(px(3, 0)).toBe(RAMPS.wood_oak[0]);
+    expect(px(2, 1)).toBe(OUTLINE);
+  });
+
+  it('落影畫在所有物件之下、地面之上', () => {
+    const box = { ...dot, id: 'test/sbox', size: [6, 4], anchor: [3, 2], shadow: true, rows: ['......', '.mmmm.', '.mmmm.', '......'] };
+    const image = compose(6, 4, [
+      { result: render(floor), x: 0, y: 0, ground: true },
+      { result: render(box), x: 0, y: 0 },
+    ]);
+    expect(image.pixels[3 * 6 + 3]).toBe(OUTLINE);
+    expect(image.pixels[2 * 6 + 3]).toBe(RAMPS.wood_oak[1]);
+    // (2,2) 同時有落影與物件：物件在上。
+    expect(render(box).shadow[2 * 6 + 2]).toBe(SHADOW);
+    expect(image.pixels[2 * 6 + 2]).toBe(RAMPS.wood_oak[1]);
   });
 });
 

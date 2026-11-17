@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
-import { HALL_CAPACITY, SEAT_IDS, assignSeats } from './seats.js';
+import { readFileSync } from 'node:fs';
+import { HALL_CAPACITY, SCENE_SIZE, SEAT_GROUPS, SEAT_IDS, SEAT_SPOTS, assignSeats, seatsCss } from './seats.js';
 
 let nextId = 1;
 const make = (status, count = 1) => Array.from({ length: count }, () => ({ userId: nextId++, status }));
@@ -65,4 +66,31 @@ test('members beyond the 16 seats are left out', () => {
 test('the hall capacity equals the number of seats', () => {
   expect(HALL_CAPACITY).toBe(16);
   expect(HALL_CAPACITY).toBe(SEAT_IDS.length);
+});
+test('every seat has a spot inside the scene and belongs to exactly one row group', () => {
+  const grouped = SEAT_GROUPS.flatMap(group => group.seats);
+  expect([...grouped].sort()).toEqual([...SEAT_IDS].sort());
+  expect(Object.keys(SEAT_SPOTS).sort()).toEqual([...SEAT_IDS].sort());
+  for (const [x, y] of Object.values(SEAT_SPOTS)) {
+    expect(x).toBeGreaterThanOrEqual(0);
+    expect(y).toBeGreaterThanOrEqual(0);
+    expect(x + 16).toBeLessThanOrEqual(SCENE_SIZE[0]);
+    expect(y + 24).toBeLessThanOrEqual(SCENE_SIZE[1]);
+  }
+});
+test('characters never overlap each other', () => {
+  const spots = Object.values(SEAT_SPOTS);
+  // 角色本體在 16×24 圖的第 1–14 欄、第 1–21 列。
+  const box = ([x, y]) => [x + 1, y + 1, x + 15, y + 22];
+  spots.forEach((a, i) => spots.slice(i + 1).forEach(b => {
+    const [ax1, ay1, ax2, ay2] = box(a);
+    const [bx1, by1, bx2, by2] = box(b);
+    expect(ax1 < bx2 && bx1 < ax2 && ay1 < by2 && by1 < ay2).toBe(false);
+  }));
+});
+test('styles/seats.css is generated from the seat spots', () => {
+  // git 在 Windows 上可能把換行轉成 CRLF，比對前統一成 LF。
+  // Vitest 不處理 CSS 的 ?raw，jsdom 下 import.meta.url 也不是 file:，所以從專案根目錄讀檔（npm test 在根目錄執行）。
+  const file = readFileSync('web/src/styles/seats.css', 'utf8');
+  expect(file.replace(/\r\n/g, '\n')).toBe(seatsCss());
 });

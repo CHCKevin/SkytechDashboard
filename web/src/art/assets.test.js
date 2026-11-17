@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lookFor } from '../lib/sprite.js';
+import looksV1 from './looks-v1.json';
 import { HAIR_NAMES, character, lookIndices, renderCharacter } from './assets/character.js';
 import { chair, table } from './assets/furniture.js';
 import { plant } from './assets/plant.js';
@@ -8,13 +8,6 @@ import { fingerprint, render } from './engine.js';
 import golden from './golden.json';
 import { validate } from './validate.js';
 
-// lib/sprite.js 現行的顏色清單（只用來比對抽選結果的索引）。
-const OLD = {
-  hairColor: ['#3a2a1a', '#15110e', '#7a4a20', '#c9c9c9', '#d9a441', '#b5432e'],
-  skin: ['#f2c9a0', '#e0b088', '#c98f66', '#8d5a3b'],
-  cloth: ['#d94f4f', '#4f8fd9', '#58b368', '#b06fd6', '#e0a030', '#3fb5b0', '#d96fa8', '#8a8a8a'],
-  accent: ['#5b3fa8', '#9aa3ad', '#c23a3a', '#2e7d4f', '#d9b441'],
-};
 
 describe('四個原型資產', () => {
   it.each(CASES.map(c => [c.name, c]))('%s 通過驗證', (_, c) => {
@@ -47,14 +40,11 @@ describe('四個原型資產', () => {
 });
 
 describe('人物', () => {
-  it('抽選結果與現行 lookFor 相同（換畫法後造型類型不變）', () => {
-    for (let userId = 1; userId <= 1000; userId += 1) {
-      const look = lookIndices(userId);
-      const old = lookFor(userId);
-      expect(look.hair).toBe(old.hair);
-      expect(look.hat).toBe(old.hat);
-      for (const key of ['hairColor', 'skin', 'cloth', 'accent']) expect(OLD[key][look[key]]).toBe(old[key]);
-    }
+  it('抽選結果與第二階段的 lookFor 相同（換畫法後造型類型不變）', () => {
+    looksV1.looks.forEach((expected, i) => {
+      const look = lookIndices(i + 1);
+      expect([look.hair, look.hat, look.hairColor, look.skin, look.cloth, look.accent].join(',')).toBe(expected);
+    });
   });
 
   it('1000 位使用者、三種狀態都通過驗證', () => {

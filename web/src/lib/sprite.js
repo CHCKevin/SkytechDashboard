@@ -1,72 +1,23 @@
-import { generator } from '../art/random.js';
+import { lookIndices, renderCharacter } from '../art/assets/character.js';
+import { flatten } from '../art/engine.js';
+import { EYE, PALETTE } from '../art/style.js';
+import { toArt } from '../art/svg.js';
 
-// 像素角色：12×16 的字元格。H 髮、S 膚、E 眼、C 衣、D 衣服暗部、P 褲、B 鞋、A 頭飾、. 透明。
-const BODY = [
-  '............',
-  '...HHHHHH...',
-  '..HHHHHHHH..',
-  '..HSSSSSSH..',
-  '..SSESSESS..',
-  '..SSSSSSSS..',
-  '...SSSSSS...',
-  '..CCCCCCCC..',
-  '.CCCCDDCCCC.',
-  '.SCCCDDCCCS.',
-  '.SCCCCCCCCS.',
-  '..CCCCCCCC..',
-  '..PPPPPPPP..',
-  '..PPP..PPP..',
-  '..PPP..PPP..',
-  '..BBB..BBB..',
-];
+// 大廳角色的造型：由使用者編號固定算出，畫法在 web/src/art（像素引擎與 assets/character.js）。
+// 抽選順序與第二階段相同，換新畫法後每個人仍是同一種髮型、髮色、膚色、衣服與配件顏色。
+export const lookFor = lookIndices;
+export const EYE_COLOR = PALETTE[EYE];
 
-// 髮型與頭飾都是「覆寫指定列」；頭飾後套用，所以會蓋住頭髮。
-const HAIRS = {
-  short: {},
-  long: { 3: '..HSSSSSSH..', 4: '.HSSESSESSH.', 5: '.HSSSSSSSSH.', 6: '.H.SSSSSS.H.' },
-  spiky: { 0: '..H.H..H.H..', 1: '..HHHHHHHH..' },
-  bald: { 1: '...SSSSSS...', 2: '..SSSSSSSS..', 3: '..SSSSSSSS..' },
-  bun: { 0: '.....HH.....' },
-};
-const HATS = {
-  none: {},
-  wizard: { 0: '.....AA.....', 1: '....AAAA....', 2: '.AAAAAAAAAA.' },
-  helmet: { 1: '...AAAAAA...', 2: '..AAAAAAAA..', 3: '..ASSSSSSA..' },
-  hood: { 1: '...CCCCCC...', 2: '..CCCCCCCC..', 3: '..CSSSSSSC..', 4: '..CSESSESC..', 5: '..CSSSSSSC..' },
-  band: { 2: '..AAAAAAAA..' },
-  cap: { 1: '...AAAAAA...', 2: '..AAAAAAAAAA' },
-};
-// 「沒有頭飾」出現三次，讓大約三分之一的人不戴東西。
-const HAT_POOL = ['none', 'none', 'none', 'wizard', 'helmet', 'hood', 'band', 'cap'];
-const HAIR_COLORS = ['#3a2a1a', '#15110e', '#7a4a20', '#c9c9c9', '#d9a441', '#b5432e'];
-const SKIN_COLORS = ['#f2c9a0', '#e0b088', '#c98f66', '#8d5a3b'];
-const CLOTH_COLORS = ['#d94f4f', '#4f8fd9', '#58b368', '#b06fd6', '#e0a030', '#3fb5b0', '#d96fa8', '#8a8a8a'];
-const ACCENT_COLORS = ['#5b3fa8', '#9aa3ad', '#c23a3a', '#2e7d4f', '#d9b441'];
-export const EYE_COLOR = '#1a1a1a';
-const PANTS_COLOR = '#3d3a52';
-const BOOT_COLOR = '#2a1c12';
-
-function darken(hex) {
-  const value = parseInt(hex.slice(1), 16);
-  return `#${[value >> 16, (value >> 8) & 255, value & 255].map(part => Math.round(part * 0.7).toString(16).padStart(2, '0')).join('')}`;
+// 回傳 PixelArt.svelte 用的 { width: 16, height: 24, rects }。
+export function spriteFor(userId, status = 'working') {
+  const result = renderCharacter(userId, status);
+  return toArt({ width: result.width, height: result.height, pixels: flatten(result) });
 }
 
-// 由使用者編號決定造型；抽選順序固定，改動順序會讓所有人換造型。
-export function lookFor(userId) {
-  const random = generator(userId);
-  const pick = list => list[Math.floor(random() * list.length)];
-  return {
-    hair: pick(Object.keys(HAIRS)),
-    hat: pick(HAT_POOL),
-    hairColor: pick(HAIR_COLORS),
-    skin: pick(SKIN_COLORS),
-    cloth: pick(CLOTH_COLORS),
-    accent: pick(ACCENT_COLORS),
-  };
-}
+export const STATUS_LABELS = { working: '工作中', idle: '發呆', resting: '休息' };
 
-// 把字元格轉成 SVG 用的橫條：同一列相鄰同色的格子合併成一個 rect。
-function toArt(rows, colors) {
+// 狀態圖示 7×7，畫在淺色底的小牌子上（底色與外框由 CSS 的 .status-icon 提供）。
+function iconArt(rows, colors) {
   const rects = [];
   rows.forEach((row, y) => {
     let x = 0;
@@ -80,29 +31,12 @@ function toArt(rows, colors) {
   });
   return { width: rows[0].length, height: rows.length, rects };
 }
-
-export function spriteFor(userId, status = 'working') {
-  const look = lookFor(userId);
-  const rows = [...BODY];
-  for (const [index, row] of Object.entries(HAIRS[look.hair])) rows[index] = row;
-  for (const [index, row] of Object.entries(HATS[look.hat])) rows[index] = row;
-  return toArt(rows, {
-    H: look.hairColor, S: look.skin, C: look.cloth, D: darken(look.cloth), A: look.accent,
-    P: PANTS_COLOR, B: BOOT_COLOR,
-    // 休息時閉上眼睛。
-    E: status === 'resting' ? darken(look.skin) : EYE_COLOR,
-  });
-}
-
-export const STATUS_LABELS = { working: '工作中', idle: '發呆', resting: '休息' };
-
-// 圖示畫在淺色底的小牌子上（底色與外框由 CSS 的 .status-icon 提供）。
 const ICON_COLORS = { X: '#2b1a0e', M: '#7d8791', T: '#8a5a35', Z: '#2f6fc0' };
 export const STATUS_ICONS = {
   // 槌子
-  working: toArt(['.MMMMM.', '.MMMMM.', '.MMMMM.', '...T...', '...T...', '...T...', '...T...'], ICON_COLORS),
+  working: iconArt(['.MMMMM.', '.MMMMM.', '.MMMMM.', '...T...', '...T...', '...T...', '...T...'], ICON_COLORS),
   // 三個點
-  idle: toArt(['.......', '.......', '.......', '.X.X.X.', '.X.X.X.', '.......', '.......'], ICON_COLORS),
+  idle: iconArt(['.......', '.......', '.......', '.X.X.X.', '.X.X.X.', '.......', '.......'], ICON_COLORS),
   // Z
-  resting: toArt(['.ZZZZZ.', '.....Z.', '....Z..', '...Z...', '..Z....', '.Z.....', '.ZZZZZ.'], ICON_COLORS),
+  resting: iconArt(['.ZZZZZ.', '.....Z.', '....Z..', '...Z...', '..Z....', '.Z.....', '.ZZZZZ.'], ICON_COLORS),
 };

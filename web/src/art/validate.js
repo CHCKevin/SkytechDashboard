@@ -26,8 +26,9 @@ export function validate(result, asset) {
     if (value === 0) return;
     const at = `(${index % width},${Math.floor(index / width)})`;
     const near = neighbours(index, width, height);
-    const edge = near.length < 4 || near.some(j => body[j] === 0);
-    if (edge && value !== OUTLINE) add('outline', `${at} 在邊緣但不是外框色`);
+    // 鋪滿整張圖的資產（outline: false）沒有外框，圖的邊界不算邊緣。
+    const edge = asset.outline === false ? near.some(j => body[j] === 0) : near.length < 4 || near.some(j => body[j] === 0);
+    if (edge && value !== OUTLINE && asset.outline !== false) add('outline', `${at} 在邊緣但不是外框色`);
     if (value === OUTLINE && !near.some(j => isBody(body[j]))) add('outline-attached', `${at} 的外框沒有接到物件`);
     // 只檢查四鄰都是物件本體的內部像素；貼著外框的單一像素看起來是輪廓的一部分，不算孤立。
     const interior = !edge && near.every(j => isBody(body[j]));

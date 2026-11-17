@@ -1,0 +1,17 @@
+/* 由 web/src/lib/seats.js 的 SEAT_SPOTS 產生（npm run art:seats），不要手動修改。 */
+.seat[data-seat='bar-1'] { left: calc(var(--px) * 10); top: calc(var(--px) * 22); }
+.seat[data-seat='bar-2'] { left: calc(var(--px) * 30); top: calc(var(--px) * 22); }
+.seat[data-seat='bar-3'] { left: calc(var(--px) * 50); top: calc(var(--px) * 22); }
+.seat[data-seat='bar-4'] { left: calc(var(--px) * 70); top: calc(var(--px) * 22); }
+.seat[data-seat='bar-5'] { left: calc(var(--px) * 90); top: calc(var(--px) * 22); }
+.seat[data-seat='desk-1'] { left: calc(var(--px) * 6); top: calc(var(--px) * 56); }
+.seat[data-seat='desk-2'] { left: calc(var(--px) * 22); top: calc(var(--px) * 56); }
+.seat[data-seat='desk-3'] { left: calc(var(--px) * 62); top: calc(var(--px) * 56); }
+.seat[data-seat='desk-4'] { left: calc(var(--px) * 78); top: calc(var(--px) * 56); }
+.seat[data-seat='desk-5'] { left: calc(var(--px) * 6); top: calc(var(--px) * 94); }
+.seat[data-seat='desk-6'] { left: calc(var(--px) * 22); top: calc(var(--px) * 94); }
+.seat[data-seat='desk-7'] { left: calc(var(--px) * 70); top: calc(var(--px) * 94); }
+.seat[data-seat='sofa-1'] { left: calc(var(--px) * 133); top: calc(var(--px) * 60); }
+.seat[data-seat='sofa-2'] { left: calc(var(--px) * 149); top: calc(var(--px) * 60); }
+.seat[data-seat='sofa-3'] { left: calc(var(--px) * 165); top: calc(var(--px) * 60); }
+.seat[data-seat='sofa-4'] { left: calc(var(--px) * 155); top: calc(var(--px) * 98); }
