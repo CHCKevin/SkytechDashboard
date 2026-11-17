@@ -52,12 +52,16 @@ flowchart LR
 
 ```js
 {
+  id: 'character/seated',
   width: 16,
   height: 24,
-  pixels: Uint8Array,   // 長度 width*height；0 = 透明，其餘是調色盤索引
-  anchor: { x: 8, y: 23 }, // 腳底中心，用來對齊座位與排序
+  anchor: { x: 8, y: 22 }, // 腳底中心，用來對齊座位與排序
+  body: Uint8Array,        // 物件本體（含外框）；長度 width*height；0 = 透明，其餘是調色盤索引
+  shadow: Uint8Array|null, // 落影，獨立一層；沒有落影時為 null
 }
 ```
+
+（2026-11-17 第 1 階段實作後更新：原設計的 `pixels` 單一欄位改為 `body` 與 `shadow` 兩層。）
 
 ### 風格規格 `style.js`
 
@@ -73,36 +77,37 @@ export const RULES = { tile: 16, maxColors: 128, maxHueStep: 20, ... };
 
 延續現在 `sprite.js` 的字元格寫法：人可以直接在編輯器裡看出形狀，diff 也看得懂。
 
+實作後的格式（`web/src/art/assets/furniture.js`）：
+
 ```js
 export const chair = {
   id: 'furniture/chair',
   version: 1,
   size: [12, 16],
-  anchor: [6, 15],
-  layers: [
-    {
-      name: 'back',
-      depth: 'behind',          // behind = 角色之下；front = 角色之上
-      rows: [
-        '..1222221..',
-        // …
-      ],
-      legend: { 1: ['wood', 0], 2: ['wood', 1], 3: ['wood', 2] }, // 字元 → [材質, 明暗階]
-      texture: 'woodGrain',      // 選用：程序紋理規則
-    },
-  ],
-  variants: { material: ['wood', 'darkWood'] }, // 選用：決定性變體
+  anchor: [6, 14],
+  maxColors: 10,           // 單一資產用色上限（A6）
+  shadow: true,            // 是否產生落影層
+  legend: { d: ['wood', 0], m: ['wood', 1], l: ['wood', 2], L: ['wood', 3] }, // 字元 → [色階槽, 明暗階, 紋理?]
+  variants: { wood: ['wood_oak', 'wood_walnut'] }, // 決定性變體；第一個是預設值
+  slots: variant => ({ wood: variant.wood }),       // 色階槽 → 實際色階
+  rows: ['............', '..LLllllll..', /* … */],  // 也可以是 variant => rows
 };
 ```
 
-角色的定義多一層「部件」：身體、髮型、頭飾等各是一組圖層，`lookFor(userId)` 決定選哪些部件、哪條色階。
+- 紋理寫在圖例的第三欄，例如 `T: ['wood', 2, 'grain']`。
+- **每個資產只有一層物件本體**，沒有原設計的多個 `layers`。家具在角色之前或之後，是場景排版決定的（椅子在人之下、桌子在人之上），在第 3 階段由座位資料指定，不寫在資產裡。
+- 人物（`assets/character.js`）的 `rows(variant)` 由基本身體加上髮型、頭飾的覆寫列組成；`lookIndices(userId)` 決定變體，抽選與 `lookFor` 相同。
 
 ### 引擎 `engine.js` 的公開函式
 
 ```js
-render(asset, { seed = 0, frame = 0, variant = {} } = {}) // → 索引像素格（或 { behind, front } 兩張）
-renderCharacter(userId, { status, frame, pose })          // → 同上
+render(asset, { variant = {}, seed = 0 } = {}) // → 索引像素格（body ＋ shadow）
+renderCharacter(userId, status = 'working')     // → 同上（在 assets/character.js）
+flatten(result)                                 // → 物件疊在落影上的單一 Uint8Array（PNG 與組合預覽用）
+fingerprint(result)                             // → 8 位十六進位指紋（黃金測試）
 ```
+
+動畫的 `frame` 參數在第 4 階段加入。
 
 內部步驟：疊圖層 → 把（材質, 階）換成調色盤索引 → 套程序紋理 → 自動外框 → 落影。全部是純函式，不碰 DOM、不讀檔。
 

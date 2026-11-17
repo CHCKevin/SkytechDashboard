@@ -48,7 +48,7 @@ flowchart LR
 ### 第 2 階段：目錄與人工審查
 
 - `tools/art/catalog.mjs`、`npm run art:catalog`、`art-out/` 加入 `.gitignore`。
-- 輸出：原生 PNG、圖集 PNG＋JSON、`catalog.json`、`index.html` 並排預覽。
+- 輸出：原生 PNG、`catalog.json`、`index.html` 並排預覽（另有組合場景與 16 人並排）。動畫圖集 PNG＋JSON 移到第 4 階段，因為第 4 階段才有多幀。
 - **人工審查點**：使用者看目錄頁，依 `06` 的人工清單打分。依意見修改樣板，直到使用者同意風格。這一步之後才動正式畫面。
 
 ### 第 3 階段：換上大廳

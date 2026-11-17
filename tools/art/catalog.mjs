@@ -73,7 +73,7 @@ const scenes = [
   },
   {
     name: 'scene-chair',
-    note: '人坐在椅子上（椅子畫在人之下）：工作中、休息',
+    note: '人坐在椅子上（椅子畫在人之下，正面幾乎被身體擋住；空位時才看得到整張椅子）：工作中、休息',
     image: compose(48, 40, [
       { result: render(chair), x: 6, y: 22 },
       { result: renderCharacter(11), x: 4, y: 13 },
