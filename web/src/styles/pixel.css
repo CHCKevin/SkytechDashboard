@@ -136,8 +136,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .sprite { width: 48px; height: 72px; display: block; }
 .sprite-small { width: 32px; height: 48px; display: block; flex: none; }
 .status-icon { width: 22px; height: 22px; display: block; padding: 2px; background: var(--paper); border: 2px solid var(--ink); }
-/* 窄螢幕改用 2 倍，場景比畫面寬時可以左右捲動。 */
-@media (max-width: 800px) {
+/* 3 倍的場景寬 672px（含外框）。兩欄版面的場景欄約為 (視窗寬 − 60) × 0.615，視窗要約 1170px 以上才放得下，
+   所以 1179px 以下改用 2 倍（452px）；單欄（800px 以下）時比畫面寬就左右捲動。 */
+@media (max-width: 1179px) {
   .scene { --px: 2px; }
 }
 

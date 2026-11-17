@@ -66,3 +66,8 @@ test('each status has an icon and a label', () => {
     expect([STATUS_ICONS[status].width, STATUS_ICONS[status].height]).toEqual([7, 7]);
   }
 });
+test('every sprite stays within 150 SVG rects (acceptance limit), checked for users 1-1000', () => {
+  for (let id = 1; id <= 1000; id += 1) {
+    for (const status of ['working', 'resting']) expect(spriteFor(id, status).rects.length).toBeLessThanOrEqual(150);
+  }
+});
