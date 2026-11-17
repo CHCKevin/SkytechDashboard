@@ -3,7 +3,8 @@
 最後更新：2026-11-17（Asia/Taipei）
 目前階段：
 - 第一階段（My time tracking 任務布告欄）已完成實作與驗證，並已合併到 `develop`（PR #1，分支 `feature/quest-board` 已刪除）。
-- 第二階段（公會大廳）已完成實作與驗證，位於 `feature/guild-hall`（從 `develop` 開出，基底是 PR #1 的合併 commit），尚未推送、尚未合併。
+- 第二階段（公會大廳）已完成實作與驗證，已合併到 `develop`（PR #2）。
+- 第三階段（像素畫面優化）：研究與規格文件完成，位於 `feature/pixel-art-research`（從 `develop` 開出），尚未實作；開工前需要使用者回覆 `docs/pixel-art/05-implementation-roadmap.md` 的待決定事項。
 
 ## 專案方向
 
@@ -17,7 +18,8 @@
 1. 本文件。
 2. `docs/superpowers/specs/2026-11-16-quest-board-time-tracking-design.md`（第一階段設計，含實測過的 OpenProject API 細節）與 `docs/superpowers/specs/2026-11-17-guild-hall-design.md`（公會大廳設計）。
 3. `tasks/todo.md`（進度與驗證紀錄）。
-4. 實作計畫：`docs/superpowers/plans/2026-11-16-quest-board-backend.md`、`docs/superpowers/plans/2026-11-16-quest-board-frontend.md`、`docs/superpowers/plans/2026-11-17-guild-hall.md`。
+4. 像素畫面優化的研究與規格：`docs/pixel-art/01`–`06`。
+5. 實作計畫：`docs/superpowers/plans/2026-11-16-quest-board-backend.md`、`docs/superpowers/plans/2026-11-16-quest-board-frontend.md`、`docs/superpowers/plans/2026-11-17-guild-hall.md`。
 
 ## 如何執行
 
@@ -88,6 +90,6 @@
 
 ## 下一步候選
 
-- 推送 `feature/guild-hall` 並開 PR 合併到 `develop`。
+- 像素畫面優化：使用者回覆待決定事項後，依 `docs/pixel-art/05-implementation-roadmap.md` 從第 1 階段（引擎與四個原型資產）開始。
 - 大廳後續候選：自訂造型、拖曳換位子、走路或工作動畫、超過 16 人、週檢視。
 - 任務欄後續候選：週曆／月曆檢視、計時器模式、常駐任務排序、多人內網部署。
