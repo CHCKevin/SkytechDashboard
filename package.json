@@ -13,7 +13,8 @@
     "dev:web": "vite --config web/vite.config.js",
     "build": "vite build --config web/vite.config.js",
     "start": "node server/index.mjs",
-    "demo": "node server/index.mjs --config config/example.json"
+    "demo": "node server/index.mjs --config config/example.json",
+    "art:catalog": "node tools/art/catalog.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

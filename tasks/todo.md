@@ -149,3 +149,28 @@
 - 量測與推論的界線：Tiny Pixel Farm 的原生解析度與角色尺寸是由商店截圖推算的估計值，沒有官方資料；室內家具與動畫在截圖中看不到，沒有下結論。
 - 未讀到原文、沒有當作依據：美國著作權局 AI 報告第二部分的結論、PixelLab 價格、Retro Diffusion 完整條款、跨影格一致性的獨立比較。
 - 審查後修正（同一天）：調色盤上限由 48 改為 128（原本的色階表就需要約 95 色）；落影改為獨立圖層，外框檢查不含落影；家具頂面比例改標為提案；補看其餘商店截圖（共 10 張）；補上窄螢幕放不下與座位前後遮擋兩個待決定事項。
+
+## 第三階段：決定與實作（2026-11-17）
+
+使用者回覆「照建議做」：`docs/pixel-art/05-implementation-roadmap.md` 的 9 個待決定事項全部採用建議值。
+
+第 1 階段：引擎與四個原型資產（正式畫面不變）
+- [x] `web/src/art/random.js`：決定性亂數（由 `sprite.js` 搬出，`sprite.js` 改為引用）
+- [x] `web/src/art/style.js`：色階定義（HSB）、調色盤、規則；測試 P1–P5
+- [x] `web/src/art/engine.js`：圖例上色、木紋、自動外框、獨立落影層、合併、指紋
+- [x] `web/src/art/validate.js`：A1、A2、A4–A8
+- [x] `web/src/art/assets/`：人物（坐姿 16×24，沿用 `lookFor` 的抽選）、木椅、木桌、盆栽
+- [x] `web/src/art/cases.js` 與 `golden.json`：黃金指紋
+- [x] `tools/art/png.mjs`：索引色 PNG；`tests/art-png.test.mjs`
+
+第 2 階段：目錄
+- [x] `tools/art/catalog.mjs`、`npm run art:catalog`、`art-out/` 加入 `.gitignore`
+- [x] 產出單一資產 PNG、組合場景、16 人並排、`catalog.json`、`index.html`
+- [ ] 使用者依 `06` 的 H1–H9 審查目錄（`npm run art:catalog` 後開 `art-out/index.html`）
+
+驗證（2026-11-17）：
+- 測試：後端 node --test 123（新增 PNG 匯出 3 個）、前端 Vitest 260（新增像素引擎 138 個），全數通過； 無警告。正式產物不含 （大廳尚未引用）。
+- ：17 個樣本、4 張組合預覽，驗證問題 0。在瀏覽器檢視 index.html：1×／2×／3× 邊緣銳利，16 人看得出不同，桌子遮住後方人物的下半身。
+- 人物：1000 位使用者 × 3 種狀態全部通過驗證；抽選結果與現行  完全相同。
+- 途中修正：盆栽樣板有 4 處孤立像素（驗證器抓到後改樣板）；孤立像素的定義改為「四鄰都是物件本體」，貼著外框的單一像素不算。
+- 尚未做：動畫（第 4 階段）、換上大廳（第 3 階段，等審查通過）。

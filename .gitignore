@@ -7,3 +7,4 @@ config/local.json
 node_modules/
 data/
 web/dist/
+art-out/

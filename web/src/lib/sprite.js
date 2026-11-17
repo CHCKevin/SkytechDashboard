@@ -1,3 +1,5 @@
+import { generator } from '../art/random.js';
+
 // 像素角色：12×16 的字元格。H 髮、S 膚、E 眼、C 衣、D 衣服暗部、P 褲、B 鞋、A 頭飾、. 透明。
 const BODY = [
   '............',
@@ -43,18 +45,6 @@ const ACCENT_COLORS = ['#5b3fa8', '#9aa3ad', '#c23a3a', '#2e7d4f', '#d9b441'];
 export const EYE_COLOR = '#1a1a1a';
 const PANTS_COLOR = '#3d3a52';
 const BOOT_COLOR = '#2a1c12';
-
-// mulberry32：小而固定的亂數產生器，同一個種子永遠得到同一串數字。
-function generator(seed) {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let value = state;
-    value = Math.imul(value ^ (value >>> 15), value | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 function darken(hex) {
   const value = parseInt(hex.slice(1), 16);
