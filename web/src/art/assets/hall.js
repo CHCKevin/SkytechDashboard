@@ -2,16 +2,17 @@
 const line = (fill, width) => `.${fill.repeat(width - 2)}.`;
 const blank = width => '.'.repeat(width);
 
-// 地板 220×144：木板每 8 列一塊，上緣一列亮、下緣一列暗；木板接縫每塊錯開。鋪滿整張圖，不加外框。
+// 地板 220×160：木板每 8 列一塊，上緣一列亮、下緣一列暗；木板接縫每塊錯開。鋪滿整張圖，不加外框。
 export const floor = {
   id: 'hall/floor',
-  version: 1,
-  size: [220, 144],
-  anchor: [110, 143],
+  // v2：場景加高到 160 列，放得下工作桌前方的座位。
+  version: 2,
+  size: [220, 160],
+  anchor: [110, 159],
   maxColors: 4,
   outline: false,
   legend: { d: ['floor', 0], m: ['floor', 1], l: ['floor', 2] },
-  rows: Array.from({ length: 144 }, (_, y) => {
+  rows: Array.from({ length: 160 }, (_, y) => {
     const band = Math.floor(y / 8);
     if (y % 8 === 7) return 'd'.repeat(220);
     if (y % 8 === 0) return 'l'.repeat(220);

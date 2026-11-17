@@ -3,16 +3,17 @@
 // 加上 --update-golden 會把目前的指紋寫回 web/src/art/golden.json（刻意改外觀時才用）。
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { character, renderCharacter } from '../../web/src/art/assets/character.js';
+import { ANIMATIONS, FACINGS, character, renderCharacter, renderFrames } from '../../web/src/art/assets/character.js';
 import { chair, table } from '../../web/src/art/assets/furniture.js';
 import { plant } from '../../web/src/art/assets/plant.js';
 import { CASES, renderCase } from '../../web/src/art/cases.js';
-import { compose, fingerprint, flatten, render } from '../../web/src/art/engine.js';
-import { backgroundPlacements, frontPlacements } from '../../web/src/lib/hall-art.js';
-import { SCENE_SIZE, SEAT_GROUPS, SEAT_SPOTS, assignSeats } from '../../web/src/lib/seats.js';
+import { compose, flatten, render } from '../../web/src/art/engine.js';
 import { PALETTE, RAMPS, STYLE_VERSION } from '../../web/src/art/style.js';
-import { validate } from '../../web/src/art/validate.js';
+import { backgroundPlacements, tablePlacements } from '../../web/src/lib/hall-art.js';
+import { SCENE_SIZE, SEAT_GROUPS, SEAT_SPOTS, assignSeats } from '../../web/src/lib/seats.js';
+import { describeCase } from './metadata.mjs';
 import { encodeIndexedPng } from './png.mjs';
+import { spriteSheet } from './sheet.mjs';
 
 const root = new URL('../../', import.meta.url);
 const outDir = fileURLToPath(new URL('art-out/', root));
@@ -29,47 +30,51 @@ const writePng = (name, image) => writeFileSync(`${outDir}${name}.png`, encodeIn
 const entries = CASES.map(c => {
   const result = renderCase(c);
   writePng(c.name, { width: result.width, height: result.height, pixels: flatten(result) });
-  const hash = fingerprint(result);
-  return {
-    name: c.name,
-    id: c.asset.id,
-    version: c.asset.version,
-    styleVersion: STYLE_VERSION,
-    size: [result.width, result.height],
-    anchor: result.anchor,
-    variant: c.variant,
-    seed: c.seed ?? 0,
-    colors: new Set(flatten(result).filter(Boolean)).size,
-    hash,
-    changed: golden[c.name] !== hash,
-    issues: validate(result, c.asset),
-  };
+  return describeCase(c, result, golden);
 });
 
-// 組合預覽：人坐在桌子後方、人坐在椅子上、空椅子、盆栽。
-// 整個大廳：16 位成員（使用者 1–16，三種狀態輪流），依實際的位子分配與圖層順序。
-const hallMembers = Array.from({ length: 16 }, (_, i) => ({ userId: i + 1, status: ['working', 'idle', 'resting'][i % 3] }));
-const seated = assignSeats(hallMembers);
-const hallPlacements = [
-  ...backgroundPlacements(),
-  ...SEAT_GROUPS.flatMap(group => [
-    ...group.seats.filter(id => seated[id]).map(id => ({
-      result: renderCharacter(seated[id].userId, seated[id].status), x: SEAT_SPOTS[id][0], y: SEAT_SPOTS[id][1],
-    })),
-    ...frontPlacements(group.name),
-  ]),
-];
+// 整個大廳：16 位成員（使用者 1–16，三種狀態輪流），依實際的位子分配、方向與圖層順序。
+const hallPlacementsFor = members => {
+  const seated = assignSeats(members);
+  return [
+    ...backgroundPlacements(),
+    ...SEAT_GROUPS.flatMap(group => [
+      ...group.seats.filter(id => seated[id]).map(id => ({
+        result: renderCharacter(seated[id].userId, seated[id].status, { facing: SEAT_SPOTS[id].facing }),
+        x: SEAT_SPOTS[id].x,
+        y: SEAT_SPOTS[id].y,
+      })),
+      ...(group.tables ? tablePlacements(group.tables) : []),
+    ]),
+  ];
+};
+const hallPlacements = hallPlacementsFor(Array.from({ length: 16 }, (_, i) => ({ userId: i + 1, status: ['working', 'idle', 'resting'][i % 3] })));
+// 16 人全部工作中：坐滿桌後 8 位、桌頭 4 位，再坐 4 位桌前（背面）。
+const busyPlacements = hallPlacementsFor(Array.from({ length: 16 }, (_, i) => ({ userId: i + 1, status: 'working' })));
+const tableLayers = SEAT_GROUPS.filter(group => group.tables).flatMap(group => tablePlacements(group.tables));
 
 const scenes = [
   {
     name: 'hall-full',
-    note: '整個大廳，16 位成員坐滿（不含名牌與狀態圖示，那些由網頁另外畫）',
+    note: '整個大廳，16 位成員（不含名牌與狀態圖示，那些由網頁另外畫）',
     image: compose(SCENE_SIZE[0], SCENE_SIZE[1], hallPlacements),
   },
   {
+    name: 'hall-busy',
+    note: '16 人全部工作中：桌後（正面）、桌頭（側面）、桌前（背面）都有人',
+    image: compose(SCENE_SIZE[0], SCENE_SIZE[1], busyPlacements),
+  },
+  {
     name: 'hall-empty',
-    note: '空的大廳：吧檯高腳椅、工作桌椅背、沙發都看得到',
-    image: compose(SCENE_SIZE[0], SCENE_SIZE[1], [...backgroundPlacements(), ...SEAT_GROUPS.flatMap(group => frontPlacements(group.name))]),
+    note: '空的大廳：吧檯與桌前、桌頭的高腳椅、桌後的椅背、沙發都看得到',
+    image: compose(SCENE_SIZE[0], SCENE_SIZE[1], [...backgroundPlacements(), ...tableLayers]),
+  },
+  {
+    name: 'facings',
+    note: '四個方向：正面、背面、左側面、右側面（使用者 11–14）',
+    image: compose(4 * 18, 4 * 26, [11, 12, 13, 14].flatMap((userId, row) => FACINGS.map((facing, col) => ({
+      result: renderCharacter(userId, 'working', { facing }), x: col * 18 + 1, y: row * 26 + 1,
+    })))),
   },
   {
     name: 'scene-table',
@@ -82,31 +87,28 @@ const scenes = [
     ]),
   },
   {
-    name: 'scene-chair',
-    note: '人坐在椅子上（椅子畫在人之下，正面幾乎被身體擋住；空位時才看得到整張椅子）：工作中、休息',
-    image: compose(48, 40, [
-      { result: render(chair), x: 6, y: 22 },
-      { result: renderCharacter(11), x: 4, y: 14 },
-      { result: render(chair, { variant: { wood: 'wood_walnut' } }), x: 30, y: 22 },
-      { result: renderCharacter(13, 'resting'), x: 28, y: 14 },
-    ]),
-  },
-  {
     name: 'crowd',
     note: '使用者編號 1–16，同時看 16 個人是否分得出來',
     image: compose(4 * 18, 4 * 26, Array.from({ length: 16 }, (_, i) => ({
       result: renderCharacter(i + 1), x: (i % 4) * 18 + 1, y: Math.floor(i / 4) * 26 + 1,
     }))),
   },
-  {
-    name: 'statuses',
-    note: '同一個人的三種狀態：工作中、發呆、休息（動畫在第 4 階段）',
-    image: compose(54, 26, character.variants.status.map((status, i) => ({
-      result: renderCharacter(14, status), x: i * 18 + 1, y: 1,
-    }))),
-  },
 ];
 for (const scene of scenes) writePng(scene.name, scene.image);
+
+// 動畫圖集：每位使用者一張，列是方向，欄依序是工作中 2 幀、發呆 2 幀、休息 1 幀；JSON 記錄每幀位置與時間。
+const sheets = [12, 13].map(userId => {
+  const rows = FACINGS.map(facing => Object.keys(ANIMATIONS).flatMap(status =>
+    renderFrames(userId, status, facing).map((result, frame) => ({
+      name: `${facing}-${status}-${frame}`, result, duration: ANIMATIONS[status].frameMs,
+    }))));
+  const { image, data } = spriteSheet(rows, { userId, styleVersion: STYLE_VERSION, characterVersion: character.version });
+  const name = `sheet-user-${userId}`;
+  writePng(name, image);
+  writeFileSync(`${outDir}${name}.json`, `${JSON.stringify(data, null, 2)}\n`);
+  return { name, note: `使用者 ${userId} 的動畫圖集（列：${FACINGS.join('、')}；欄：工作中 ×2、發呆 ×2、休息）`, image };
+});
+scenes.push(...sheets);
 
 const catalog = {
   styleVersion: STYLE_VERSION,

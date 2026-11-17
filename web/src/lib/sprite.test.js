@@ -55,7 +55,9 @@ test('resting closes the eyes (a wider, flat eye line) and changes nothing else'
   expect(eyeCells(asleep)).toBe(4);
   expect(new Set(asleep.rects.filter(rect => rect.color === EYE_COLOR).map(rect => rect.y)).size).toBe(1);
   expect(asleep).not.toEqual(awake);
-  expect(spriteFor(18, 'idle')).toEqual(awake);
+  // 發呆與工作中的第一幀相同，差別在動畫（第二幀）。
+  expect(spriteFor(18, 'idle').rects).toEqual(awake.rects);
+  expect(spriteFor(18, 'idle').frames[1]).not.toEqual(awake.frames[1]);
   const area = art => art.rects.reduce((sum, rect) => sum + rect.w, 0);
   expect(area(asleep)).toBe(area(awake));
 });
@@ -70,4 +72,13 @@ test('every sprite stays within 150 SVG rects (acceptance limit), checked for us
   for (let id = 1; id <= 1000; id += 1) {
     for (const status of ['working', 'resting']) expect(spriteFor(id, status).rects.length).toBeLessThanOrEqual(150);
   }
+});
+test('working and idle sprites have two frames, resting has one; every facing works', () => {
+  for (const facing of ['front', 'back', 'left', 'right']) {
+    expect(spriteFor(18, 'working', facing).frames).toHaveLength(2);
+    expect(spriteFor(18, 'idle', facing).frames).toHaveLength(2);
+    expect(spriteFor(18, 'resting', facing).frames).toHaveLength(1);
+    expect(spriteFor(18, 'working', facing).rects).toBe(spriteFor(18, 'working', facing).frames[0]);
+  }
+  expect(spriteFor(18, 'working', 'back')).not.toEqual(spriteFor(18, 'working', 'front'));
 });

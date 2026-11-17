@@ -13,11 +13,11 @@ test('the background covers the whole scene with palette colors only', () => {
   }
   expect(covered.size).toBe(SCENE_SIZE[0] * SCENE_SIZE[1]);
 });
-test('only the desk rows have a front layer (tables), and it is mostly transparent', () => {
-  const { fronts } = sceneArt();
-  expect(Object.keys(fronts).sort()).toEqual(['lower', 'upper']);
-  expect(SEAT_GROUPS.map(group => group.name)).toContain('back');
-  for (const art of Object.values(fronts)) {
+test('only the desk rows have a table layer, and it is mostly transparent', () => {
+  const { tables } = sceneArt();
+  expect(Object.keys(tables).sort()).toEqual(['lower', 'upper']);
+  expect(SEAT_GROUPS.filter(group => group.tables).map(group => group.tables)).toEqual(['upper', 'lower']);
+  for (const art of Object.values(tables)) {
     const area = art.rects.reduce((sum, rect) => sum + rect.w, 0);
     expect(area).toBeGreaterThan(0);
     expect(area).toBeLessThan(SCENE_SIZE[0] * SCENE_SIZE[1] / 4);

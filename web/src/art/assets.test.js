@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import looksV1 from './looks-v1.json';
-import { HAIR_NAMES, character, lookIndices, renderCharacter } from './assets/character.js';
+import { ANIMATIONS, FACINGS, HAIR_NAMES, character, lookIndices, renderCharacter, renderFrames } from './assets/character.js';
 import { chair, table } from './assets/furniture.js';
 import { plant } from './assets/plant.js';
 import { CASES, renderCase } from './cases.js';
@@ -55,10 +55,51 @@ describe('人物', () => {
     }
   });
 
-  it('所有髮型與頭飾的組合都通過驗證', () => {
-    for (const hair of HAIR_NAMES) {
-      for (const hat of character.variants.hat) {
-        expect([hair, hat, validate(render(character, { variant: { hair, hat } }), character)]).toEqual([hair, hat, []]);
+  it('四個方向 × 髮型 × 頭飾 × 狀態 × 幀，全部通過驗證', () => {
+    for (const facing of FACINGS) {
+      for (const hair of HAIR_NAMES) {
+        for (const hat of character.variants.hat) {
+          for (const status of character.variants.status) {
+            for (const frame of [0, 1]) {
+              const issues = validate(render(character, { variant: { facing, hair, hat, status, frame } }), character);
+              expect([facing, hair, hat, status, frame, issues]).toEqual([facing, hair, hat, status, frame, []]);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('四個方向長得都不一樣；右側面是左側面左右翻轉', () => {
+    const [front, back, left, right] = FACINGS.map(facing => renderCharacter(12, 'working', { facing }));
+    expect(new Set([front, back, left, right].map(fingerprint)).size).toBe(4);
+    for (let y = 0; y < 24; y += 1) {
+      const row = r => [...r.body.subarray(y * 16, (y + 1) * 16)];
+      expect(row(right)).toEqual(row(left).reverse());
+    }
+  });
+
+  it('A11 同一個動畫的每一幀尺寸與錨點相同；休息只有 1 幀', () => {
+    for (const facing of FACINGS) {
+      for (const status of character.variants.status) {
+        const frames = renderFrames(7, status, facing);
+        expect(frames).toHaveLength(ANIMATIONS[status].frames);
+        for (const frame of frames) {
+          expect([frame.width, frame.height, frame.anchor]).toEqual([16, 24, { x: 8, y: 21 }]);
+        }
+      }
+    }
+  });
+
+  it('A12 動畫只動允許的區域：工作中動上半身（第 0–17 列），發呆只動頭（第 0–11 列）', () => {
+    const changedRows = (a, b) => [...a.body.keys()].filter(i => a.body[i] !== b.body[i]).map(i => Math.floor(i / 16));
+    for (let userId = 1; userId <= 50; userId += 1) {
+      for (const facing of FACINGS) {
+        const [w0, w1] = renderFrames(userId, 'working', facing);
+        const [i0, i1] = renderFrames(userId, 'idle', facing);
+        expect(Math.max(...changedRows(w0, w1))).toBeLessThanOrEqual(ANIMATIONS.working.moves + 1);
+        expect(Math.max(...changedRows(i0, i1))).toBeLessThanOrEqual(ANIMATIONS.idle.moves + 1);
+        expect(changedRows(i0, i1).length).toBeGreaterThan(0);
       }
     }
   });

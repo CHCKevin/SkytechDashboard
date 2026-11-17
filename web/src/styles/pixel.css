@@ -115,12 +115,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .tab { background: var(--wood); color: var(--parchment); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 2px 12px; cursor: pointer; white-space: nowrap; }
 .tab[aria-selected='true'] { background: var(--parchment); color: var(--ink); text-shadow: none; }
 
-/* 公會大廳場景：原生 220×144 美術像素，用整數倍放大（--px 是一個美術像素的 CSS 大小）。
+/* 公會大廳場景：原生 220×160 美術像素，用整數倍放大（--px 是一個美術像素的 CSS 大小）。
    背景、桌子、角色都是像素圖；每個位子的位置在 seats.css（由 seats.js 產生）。 */
-.scene { --px: 3px; position: relative; box-sizing: content-box; width: calc(var(--px) * 220); height: calc(var(--px) * 144); margin: 0 auto; border: 6px solid var(--ink); background: var(--wood); }
+.scene { --px: 3px; position: relative; box-sizing: content-box; width: calc(var(--px) * 220); height: calc(var(--px) * 160); margin: 0 auto; border: 6px solid var(--ink); background: var(--wood); }
 .scene-layer { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
-/* 桌子畫在坐在後方的角色之上；各排不重疊，所以同一個層級即可。 */
-.scene-front { z-index: 1; }
+/* 圖層前後完全由 DOM 順序決定（背景 → 每排角色 → 該排桌子 → 下一排），所以這裡不設 z-index。 */
 .seat { position: absolute; width: calc(var(--px) * 16); height: calc(var(--px) * 24); }
 
 /* 成員 */
@@ -136,6 +135,20 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .sprite { width: 48px; height: 72px; display: block; }
 .sprite-small { width: 32px; height: 48px; display: block; flex: none; }
 .status-icon { width: 22px; height: 22px; display: block; padding: 2px; background: var(--paper); border: 2px solid var(--ink); }
+/* 角色動畫：兩幀輪流顯示。step-end 讓每段 keyframe 維持起點的值，visibility 才會真的切換。
+   時間與 web/src/art/assets/character.js 的 ANIMATIONS 相同：工作中每幀 300ms、發呆每幀 700ms。 */
+.sprite .frame-1 { visibility: hidden; }
+.anim-working .frame-0 { animation: frame-first 600ms step-end infinite; }
+.anim-working .frame-1 { animation: frame-second 600ms step-end infinite; }
+.anim-idle .frame-0 { animation: frame-first 1400ms step-end infinite; }
+.anim-idle .frame-1 { animation: frame-second 1400ms step-end infinite; }
+.delay-1 .frame { animation-delay: -250ms; }
+.delay-2 .frame { animation-delay: -500ms; }
+@keyframes frame-first { 0% { visibility: visible; } 50% { visibility: hidden; } 100% { visibility: hidden; } }
+@keyframes frame-second { 0% { visibility: hidden; } 50% { visibility: visible; } 100% { visibility: visible; } }
+@media (prefers-reduced-motion: reduce) {
+  .sprite .frame { animation: none !important; }
+}
 /* 3 倍的場景寬 672px（含外框）。兩欄版面的場景欄約為 (視窗寬 − 60) × 0.615，視窗要約 1170px 以上才放得下，
    所以 1179px 以下改用 2 倍（452px）；單欄（800px 以下）時比畫面寬就左右捲動。 */
 @media (max-width: 1179px) {

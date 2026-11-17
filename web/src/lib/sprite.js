@@ -1,4 +1,4 @@
-import { lookIndices, renderCharacter } from '../art/assets/character.js';
+import { lookIndices, renderFrames } from '../art/assets/character.js';
 import { flatten } from '../art/engine.js';
 import { EYE, PALETTE } from '../art/style.js';
 import { toArt } from '../art/svg.js';
@@ -8,10 +8,18 @@ import { toArt } from '../art/svg.js';
 export const lookFor = lookIndices;
 export const EYE_COLOR = PALETTE[EYE];
 
-// 回傳 PixelArt.svelte 用的 { width: 16, height: 24, rects }。
-export function spriteFor(userId, status = 'working') {
-  const result = renderCharacter(userId, status);
-  return toArt({ width: result.width, height: result.height, pixels: flatten(result) });
+// 回傳 PixelArt.svelte 用的 { width: 16, height: 24, rects, frames }。
+// facing：front、back、left、right。frames 是每一幀的 rects（休息 1 幀，其餘 2 幀），rects 是第一幀。
+// 同一個人、狀態、方向的結果會被重複使用，所以存起來（每人最多 3 狀態 × 4 方向）。
+const cache = new Map();
+export function spriteFor(userId, status = 'working', facing = 'front') {
+  const key = `${userId}|${status}|${facing}`;
+  if (!cache.has(key)) {
+    const frames = renderFrames(userId, status, facing)
+      .map(result => toArt({ width: result.width, height: result.height, pixels: flatten(result) }));
+    cache.set(key, { width: frames[0].width, height: frames[0].height, rects: frames[0].rects, frames: frames.map(frame => frame.rects) });
+  }
+  return cache.get(key);
 }
 
 export const STATUS_LABELS = { working: '工作中', idle: '發呆', resting: '休息' };

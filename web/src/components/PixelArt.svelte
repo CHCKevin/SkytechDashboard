@@ -1,10 +1,21 @@
 <script>
   // 把 { width, height, rects } 畫成 SVG。顏色用 fill 屬性，不用 inline style（CSP）；大小由 CSS 類別決定。
+  // 有多幀（art.frames）時每幀一個 <g class="frame frame-N">，切換顯示由 pixel.css 的動畫負責。
   let { art, class: className = '' } = $props();
 </script>
 
 <svg class={className} viewBox={`0 0 ${art.width} ${art.height}`} shape-rendering="crispEdges" aria-hidden="true">
-  {#each art.rects as rect (`${rect.x},${rect.y}`)}
-    <rect x={rect.x} y={rect.y} width={rect.w} height="1" fill={rect.color} />
-  {/each}
+  {#if art.frames?.length > 1}
+    {#each art.frames as rects, index (index)}
+      <g class={`frame frame-${index}`}>
+        {#each rects as rect (`${rect.x},${rect.y}`)}
+          <rect x={rect.x} y={rect.y} width={rect.w} height="1" fill={rect.color} />
+        {/each}
+      </g>
+    {/each}
+  {:else}
+    {#each art.rects as rect (`${rect.x},${rect.y}`)}
+      <rect x={rect.x} y={rect.y} width={rect.w} height="1" fill={rect.color} />
+    {/each}
+  {/if}
 </svg>
