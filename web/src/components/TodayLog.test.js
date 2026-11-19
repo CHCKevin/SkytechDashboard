@@ -44,3 +44,21 @@ test('a load error is shown as an alert instead of the empty hint', () => {
   expect(screen.getByRole('alert').textContent).toBe('無法連線');
   expect(screen.queryByText('這天還沒有接任務')).toBeNull();
 });
+test('multi-line comments keep their line breaks', () => {
+  const multi = [{ ...entries[0], comment: '1. 日月光 E84 研究\r\n2. 三安 Recipe 分析' }];
+  const { container } = render(TodayLog, { props: { entries: multi, target: 8, onedit: vi.fn(), ondelete: vi.fn() } });
+  expect(container.querySelector('.entry-meta').textContent).toBe('Development · 1. 日月光 E84 研究\n2. 三安 Recipe 分析');
+});
+test('the work package number links to its OpenProject activity when the URL is known', () => {
+  render(TodayLog, { props: { entries, target: 8, openProjectUrl: 'http://op.example:8080', onedit: vi.fn(), ondelete: vi.fn() } });
+  const link = screen.getByRole('link', { name: '#1234' });
+  expect(link.getAttribute('href')).toBe('http://op.example:8080/work_packages/1234/activity');
+  expect(link.getAttribute('target')).toBe('_blank');
+  expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+  expect(link.parentElement.textContent).toBe('#1234 登入頁');
+  expect(screen.getAllByRole('link')).toHaveLength(1);
+});
+test('without an OpenProject URL the number stays plain text', () => {
+  render(TodayLog, { props: { entries, target: 8, onedit: vi.fn(), ondelete: vi.fn() } });
+  expect(screen.queryByRole('link')).toBeNull();
+});

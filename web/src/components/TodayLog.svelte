@@ -1,8 +1,10 @@
 <script>
   import { barWidth } from '../lib/actions.js';
+  import { entryMeta } from '../lib/entries.js';
+  import EntryTitle from './EntryTitle.svelte';
   import { progressPercent, sumHours } from '../lib/totals.js';
 
-  let { entries, target, loading = false, loadError = '', onedit, ondelete } = $props();
+  let { entries, target, openProjectUrl = null, loading = false, loadError = '', onedit, ondelete } = $props();
   const total = $derived(sumHours(entries));
   const percent = $derived(progressPercent(total, target));
 </script>
@@ -20,10 +22,10 @@
     <ul class="entries">
       {#each entries as entry (entry.id)}
         <li class="entry">
-          <span>{entry.workPackageId ? `#${entry.workPackageId} ` : ''}{entry.workPackageSubject}</span>
+          <EntryTitle {entry} {openProjectUrl} />
           <b>{entry.hours}h</b>
-          {#if entry.activityName || entry.comment}
-            <small class="entry-meta">{[entry.activityName, entry.comment].filter(Boolean).join(' · ')}</small>
+          {#if entryMeta(entry)}
+            <small class="entry-meta">{entryMeta(entry)}</small>
           {/if}
           <span class="entry-actions">
             {#if entry.workPackageId}

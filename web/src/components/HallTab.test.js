@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import HallTab from './HallTab.svelte';
 
-vi.mock('../lib/api.js', () => ({ getHall: vi.fn(), searchUsers: vi.fn(), addHallMember: vi.fn(), removeHallMember: vi.fn() }));
+vi.mock('../lib/api.js', () => ({ getConfig: vi.fn(), getHall: vi.fn(), searchUsers: vi.fn(), addHallMember: vi.fn(), removeHallMember: vi.fn() }));
 import * as api from '../lib/api.js';
 
 const worker = {
@@ -20,6 +20,7 @@ const setVisibility = value => {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  api.getConfig.mockResolvedValue({ dailyTargetHours: 8, openProjectUrl: null });
   api.getHall.mockResolvedValue(hall());
   Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
 });
@@ -200,4 +201,17 @@ test('a removed member disappears even if the reload afterwards fails', async ()
   expect(await screen.findByText('更新失敗：無法連線到本機伺服器')).toBeTruthy();
   expect(screen.queryByRole('button', { name: '法師 怡君：工作中' })).toBeNull();
   expect(screen.getByRole('button', { name: '劍士 小華：休息' })).toBeTruthy();
+});
+test('member entries link to OpenProject when the server knows its URL', async () => {
+  api.getConfig.mockResolvedValue({ dailyTargetHours: 8, openProjectUrl: 'http://op.example:8080' });
+  render(HallTab, { date: '2026-11-16' });
+  await userEvent.click(await screen.findByRole('button', { name: '法師 怡君：工作中' }));
+  expect((await screen.findByRole('link', { name: '#1990' })).getAttribute('href')).toBe('http://op.example:8080/work_packages/1990/activity');
+});
+test('a failed config read only drops the links', async () => {
+  api.getConfig.mockRejectedValue(new Error('down'));
+  render(HallTab, { date: '2026-11-16' });
+  await userEvent.click(await screen.findByRole('button', { name: '法師 怡君：工作中' }));
+  expect(screen.getByText('#1990 Code review')).toBeTruthy();
+  expect(screen.queryByRole('link')).toBeNull();
 });

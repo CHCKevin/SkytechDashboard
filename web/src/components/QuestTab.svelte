@@ -133,7 +133,7 @@
     {#if timesheetHref}
       <a class="btn timesheet-link" href={timesheetHref} target="_blank" rel="noopener noreferrer">匯出工時表（{formatWeekLabel(date)}）↗</a>
     {/if}
-    <TodayLog {entries} {target} {loading} {loadError} onedit={openEdit} ondelete={removeEntry} />
+    <TodayLog {entries} {target} {openProjectUrl} {loading} {loadError} onedit={openEdit} ondelete={removeEntry} />
   </div>
 </main>
 

@@ -1,5 +1,7 @@
 <script>
   import { formatDay } from '../lib/dates.js';
+  import { entryMeta } from '../lib/entries.js';
+  import EntryTitle from './EntryTitle.svelte';
   import { shortName } from '../lib/names.js';
   import { HALL_CAPACITY } from '../lib/seats.js';
   import { STATUS_LABELS, spriteFor } from '../lib/sprite.js';
@@ -7,7 +9,7 @@
 
   // 大廳右側面板：沒選人時是成員名單，選了人就是他當日的工時（唯讀）。
   let {
-    members, selected = null, date, loading = false, loadError = '', refreshError = '', updatedAt = '',
+    members, selected = null, date, openProjectUrl = null, loading = false, loadError = '', refreshError = '', updatedAt = '',
     onselect, onback, onrecruit, onremove, onrefresh,
   } = $props();
   const full = $derived(members.length >= HALL_CAPACITY);
@@ -30,10 +32,10 @@
       <ul class="entries">
         {#each selected.entries as entry (entry.id)}
           <li class="entry">
-            <span>{entry.workPackageId ? `#${entry.workPackageId} ` : ''}{entry.workPackageSubject}</span>
+            <EntryTitle {entry} {openProjectUrl} />
             <b>{entry.hours}h</b>
-            {#if entry.activityName || entry.comment}
-              <small class="entry-meta">{[entry.activityName, entry.comment].filter(Boolean).join(' · ')}</small>
+            {#if entryMeta(entry)}
+              <small class="entry-meta">{entryMeta(entry)}</small>
             {/if}
           </li>
         {/each}

@@ -100,3 +100,19 @@ test('the panel uses no inline styles (CSP)', () => {
   const { container } = render(MemberPanel, { members: [worker, idler], date: '2026-11-16', ...handlers() });
   expect(container.innerHTML).not.toMatch(/style=/);
 });
+test('multi-line comments keep their line breaks', () => {
+  const multi = { ...worker, entries: [{ ...worker.entries[0], comment: '1. 日月光 E84 研究\r\n2. 三安 Recipe 分析' }] };
+  const { container } = render(MemberPanel, { members: [multi], date: '2026-11-16', ...handlers(), selected: multi });
+  expect(container.querySelector('.entry-meta').textContent).toBe('Development · 1. 日月光 E84 研究\n2. 三安 Recipe 分析');
+});
+test('work package numbers link to their OpenProject activity when the URL is known', () => {
+  show({ selected: worker, openProjectUrl: 'http://op.example:8080' });
+  const link = screen.getByRole('link', { name: '#1990' });
+  expect(link.getAttribute('href')).toBe('http://op.example:8080/work_packages/1990/activity');
+  expect(link.parentElement.textContent).toBe('#1990 Code review');
+  expect(screen.getByRole('link', { name: '#2310' }).getAttribute('href')).toBe('http://op.example:8080/work_packages/2310/activity');
+});
+test('without an OpenProject URL member entries have no links', () => {
+  show({ selected: worker });
+  expect(screen.queryByRole('link')).toBeNull();
+});

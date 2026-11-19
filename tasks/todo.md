@@ -292,3 +292,27 @@
 - [x] 實測（經使用者同意，觸發一次真實匯出）：session 先設為上週，再開啟 `/cost_reports.pdf?` 加上本週篩選 → job 狀態頁顯示 Export completed 並自動下載。以 API 取回附件 #1171 檢查：PDF 標題 2026-11-16 - 2026-11-19，內容只有本週自己的工時，合計 16:00 h。檢查後已刪除暫存的 PDF。
 - [x] 連結改指向 `/cost_reports.pdf`（timesheetReportUrl → timesheetPdfUrl）；測試：後端 127、前端 306，全數通過；`npm run build` 成功
 - 未重測：改版後的連結沒有再從本工具點一次（避免多產生一份匯出），網址與實測時相同，由單元測試確認
+
+## 工時備註保留換行（2026-11-19）
+
+分支：`feature/entry-comment-newlines`
+
+- [x] `web/src/lib/entries.js` 的 `entryMeta`：活動與備註合併；備註統一 CRLF、去掉前後空白行，保留中間換行
+- [x] 任務欄「本日已接任務」（TodayLog）與公會大廳成員面板（MemberPanel）共用 `entryMeta`
+- [x] `.entry-meta` 加上 `white-space: pre-line`（顯示換行）與 `overflow-wrap: anywhere`（長字串不撐破版面）
+
+驗證（2026-11-19）：
+- 測試：後端 127、前端 312，全數通過；`npm run build` 成功。
+- 即時模式（埠號 4183、複製的大廳名單）：11/17 #202 的兩行備註在任務欄與大廳成員面板都分成兩行顯示，computed `white-space` 為 `pre-line`。驗證後已刪除暫存設定與資料。
+
+## 工作包編號連到 OpenProject Activity（2026-11-19）
+
+分支：`feature/entry-comment-newlines`（與備註換行同一批，改的是同樣的元件）
+
+- [x] `activityUrl(origin, id)` → `{OpenProject}/work_packages/{id}/activity`
+- [x] 新元件 `EntryTitle.svelte`：知道網址時 `#編號` 變成連結（另開分頁、`noopener noreferrer`），否則維持純文字；TodayLog 與 MemberPanel 共用
+- [x] 公會大廳（HallTab）自己讀 `/api/config` 取得網址；讀取失敗只是沒有連結，不跳錯誤橫幅
+
+驗證（2026-11-19）：
+- 測試：後端 127、前端 319，全數通過；`npm run build` 成功。
+- 瀏覽器開啟公司 OpenProject 的 `/work_packages/202/activity`，會自動轉到 `/projects/software-operations/work_packages/202/activity`，並直接打開 ACTIVITY 分頁。
