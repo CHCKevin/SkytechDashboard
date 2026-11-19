@@ -53,6 +53,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* 版面 */
 .layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; }
 @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+.log-column { display: grid; gap: 12px; }
+.timesheet-link { justify-self: end; text-decoration: none; }
 
 /* 木板 */
 .board { background: repeating-linear-gradient(0deg, var(--wood) 0 10px, var(--wood-dark) 10px 12px); border: 6px solid var(--ink); box-shadow: inset 0 0 0 3px var(--wood-light); padding: 16px; }

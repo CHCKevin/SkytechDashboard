@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import * as api from '../lib/api.js';
+  import { formatWeekLabel, timesheetReportUrl } from '../lib/timesheet.js';
   import AcceptDialog from './AcceptDialog.svelte';
   import PinDialog from './PinDialog.svelte';
   import QuestBoard from './QuestBoard.svelte';
@@ -14,6 +15,7 @@
   const UNCERTAIN = new Set(['network', 'timeout', 'upstream_error', 'write_unconfirmed']);
 
   let target = $state(8);
+  let openProjectUrl = $state(null);
   let quests = $state([]);
   let entries = $state([]);
   let loading = $state(false);
@@ -25,11 +27,17 @@
   onMount(async () => {
     // 各自獨立：其中一個失敗不該讓其他已成功的資料被丟掉。
     const [config, pinned] = await Promise.allSettled([api.getConfig(), api.listQuests()]);
-    if (config.status === 'fulfilled') target = config.value.dailyTargetHours;
+    if (config.status === 'fulfilled') {
+      target = config.value.dailyTargetHours;
+      openProjectUrl = config.value.openProjectUrl ?? null;
+    }
     if (pinned.status === 'fulfilled') quests = pinned.value;
     const failed = [config, pinned].find(result => result.status === 'rejected');
     if (failed) onbanner(failed.reason.message);
   });
+
+  // 報表連結跟著頂端所選日期換週；示例模式沒有 OpenProject 網址就不顯示。
+  const timesheetHref = $derived(openProjectUrl ? timesheetReportUrl(openProjectUrl, date) : null);
 
   $effect(() => {
     loadEntries(date);
@@ -121,7 +129,12 @@
     onpin={() => (pinning = true)}>
     <SpecialQuest onselect={workPackage => openCreate(workPackage)} />
   </QuestBoard>
-  <TodayLog {entries} {target} {loading} {loadError} onedit={openEdit} ondelete={removeEntry} />
+  <div class="log-column">
+    {#if timesheetHref}
+      <a class="btn timesheet-link" href={timesheetHref} target="_blank" rel="noopener noreferrer">匯出工時表（{formatWeekLabel(date)}）↗</a>
+    {/if}
+    <TodayLog {entries} {target} {loading} {loadError} onedit={openEdit} ondelete={removeEntry} />
+  </div>
 </main>
 
 {#if dialog}

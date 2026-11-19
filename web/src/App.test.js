@@ -22,7 +22,7 @@ const entry = { id: 7, workPackageId: 1234, workPackageSubject: '前端登入頁
 beforeEach(() => {
   vi.clearAllMocks();
   api.getMe.mockResolvedValue({ id: 1, name: 'Ted' });
-  api.getConfig.mockResolvedValue({ dailyTargetHours: 8 });
+  api.getConfig.mockResolvedValue({ dailyTargetHours: 8, openProjectUrl: null });
   api.listQuests.mockResolvedValue([quest]);
   api.listEntries.mockResolvedValue([]);
   api.listActivities.mockResolvedValue([{ id: 3, name: 'Development', default: false }]);
@@ -47,6 +47,24 @@ test('accepting a quest creates an entry and refreshes the list', async () => {
   expect(api.createEntry).toHaveBeenCalledWith({ workPackageId: 1234, date: '2026-11-16', hours: 2, activityId: 3, comment: '' });
   expect(await screen.findByText('2 / 8h')).toBeTruthy();
   expect(screen.queryByRole('dialog')).toBeNull();
+});
+test('timesheet link opens the OpenProject report for the selected week', async () => {
+  api.getConfig.mockResolvedValue({ dailyTargetHours: 8, openProjectUrl: 'http://op.example:8080' });
+  render(App);
+  const link = await screen.findByRole('link', { name: '匯出工時表（11/16–11/22）↗' });
+  expect(link.getAttribute('target')).toBe('_blank');
+  expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+  const url = new URL(link.getAttribute('href'));
+  expect(url.origin + url.pathname).toBe('http://op.example:8080/cost_reports');
+  expect(url.searchParams.getAll('values[spent_on][]')).toEqual(['2026-11-16', '2026-11-22']);
+  await userEvent.click(screen.getByRole('button', { name: '前一天' }));
+  const previous = await screen.findByRole('link', { name: '匯出工時表（11/9–11/15）↗' });
+  expect(new URL(previous.getAttribute('href')).searchParams.getAll('values[spent_on][]')).toEqual(['2026-11-09', '2026-11-15']);
+});
+test('no timesheet link without an OpenProject URL', async () => {
+  render(App);
+  await screen.findByText('前端登入頁改版');
+  expect(screen.queryByRole('link', { name: /匯出工時表/ })).toBeNull();
 });
 test('changing the day reloads entries', async () => {
   render(App);
