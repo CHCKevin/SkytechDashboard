@@ -1,5 +1,6 @@
 <script>
   import { formatDay } from '../lib/dates.js';
+  import { entryMeta } from '../lib/entries.js';
   import { shortName } from '../lib/names.js';
   import { HALL_CAPACITY } from '../lib/seats.js';
   import { STATUS_LABELS, spriteFor } from '../lib/sprite.js';
@@ -32,8 +33,8 @@
           <li class="entry">
             <span>{entry.workPackageId ? `#${entry.workPackageId} ` : ''}{entry.workPackageSubject}</span>
             <b>{entry.hours}h</b>
-            {#if entry.activityName || entry.comment}
-              <small class="entry-meta">{[entry.activityName, entry.comment].filter(Boolean).join(' · ')}</small>
+            {#if entryMeta(entry)}
+              <small class="entry-meta">{entryMeta(entry)}</small>
             {/if}
           </li>
         {/each}

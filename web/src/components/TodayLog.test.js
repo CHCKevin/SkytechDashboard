@@ -44,3 +44,8 @@ test('a load error is shown as an alert instead of the empty hint', () => {
   expect(screen.getByRole('alert').textContent).toBe('無法連線');
   expect(screen.queryByText('這天還沒有接任務')).toBeNull();
 });
+test('multi-line comments keep their line breaks', () => {
+  const multi = [{ ...entries[0], comment: '1. 日月光 E84 研究\r\n2. 三安 Recipe 分析' }];
+  const { container } = render(TodayLog, { props: { entries: multi, target: 8, onedit: vi.fn(), ondelete: vi.fn() } });
+  expect(container.querySelector('.entry-meta').textContent).toBe('Development · 1. 日月光 E84 研究\n2. 三安 Recipe 分析');
+});

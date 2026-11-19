@@ -100,3 +100,8 @@ test('the panel uses no inline styles (CSP)', () => {
   const { container } = render(MemberPanel, { members: [worker, idler], date: '2026-11-16', ...handlers() });
   expect(container.innerHTML).not.toMatch(/style=/);
 });
+test('multi-line comments keep their line breaks', () => {
+  const multi = { ...worker, entries: [{ ...worker.entries[0], comment: '1. 日月光 E84 研究\r\n2. 三安 Recipe 分析' }] };
+  const { container } = render(MemberPanel, { members: [multi], date: '2026-11-16', ...handlers(), selected: multi });
+  expect(container.querySelector('.entry-meta').textContent).toBe('Development · 1. 日月光 E84 研究\n2. 三安 Recipe 分析');
+});
