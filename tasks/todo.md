@@ -266,3 +266,22 @@
 - 放大預覽確認側座的人坐在側座墊上、背靠側靠背；位置用逐像素檢查挑出，與三人座右邊的人不重疊（原本的位置會讓帽簷碰到鞋子 1–2 格）。
 - 背景 rect 4968 → 5145，測試上限調為 5500。
 - 測試：後端 126、前端 296，全數通過；`npm run build` 無警告。黃金指紋只有 hall-sofa 改變。
+
+## 任務欄：匯出工時表連結（2026-11-19）
+
+設計：`docs/superpowers/specs/2026-11-19-timesheet-export-design.md`
+計畫：`docs/superpowers/plans/2026-11-19-timesheet-export.md`
+分支：`feature/timesheet-export`
+
+- [x] Task 1 timesheet.js：週範圍、報表網址、週標籤（532c7cc）
+- [x] Task 2 /api/config 回傳 openProjectUrl（8b53ad2）
+- [x] Task 3 任務欄連結（541c2ed）
+- [x] Task 4 驗證與文件
+
+驗證（2026-11-19）：
+- 事前探測（唯讀 GET）：API token 打 `/cost_reports`、`/my/page` 都是 302 → `/login`，`/reporting/cost_reports` 是 404，所以不能由伺服器匯出。使用者在已登入的瀏覽器確認舊版篩選網址正確，也看得到 Export PDF timesheet。
+- 測試：後端 127、前端 306，全數通過；`npm run build` 成功。
+- 即時模式（埠號 4183、暫存資料目錄）：今天 2026-11-19 顯示「匯出工時表（11/16–11/22）↗」，切到 11-12 變成 11/9–11/15，按「今天」後回到本週；`target=_blank`、`rel=noopener noreferrer`；主控台沒有錯誤。點擊後 OpenProject 開啟報表：Date (Spent) between 11-16～11-22、User is me、Labor，並有 Export PDF timesheet 按鈕。
+- 示例模式（埠號 4184）：`/api/config` 的 openProjectUrl 為 null，不顯示連結。
+- 未驗證：實際按下 Export PDF timesheet 產生的 PDF（使用者在設計階段已用同一網址確認）。
+- 驗證後已刪除暫存設定（含 token 副本）與資料。

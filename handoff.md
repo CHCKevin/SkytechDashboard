@@ -1,10 +1,11 @@
 # 任務布告欄 工作交接
 
-最後更新：2026-11-17（Asia/Taipei）
+最後更新：2026-11-19（Asia/Taipei）
 目前階段：
 - 第一階段（My time tracking 任務布告欄）已完成實作與驗證，並已合併到 `develop`（PR #1，分支 `feature/quest-board` 已刪除）。
 - 第二階段（公會大廳）已完成實作與驗證，已合併到 `develop`（PR #2）。
-- 第三階段（像素畫面優化）：路線圖第 0–5 階段全部完成（研究、像素引擎、換上大廳、動畫與四個方向、裝飾），位於 `feature/pixel-art-research`，只在本機，尚未推送。第 6 階段（AI 起稿）是選用，未做。
+- 第三階段（像素畫面優化）：路線圖第 0–5 階段全部完成（研究、像素引擎、換上大廳、動畫與四個方向、裝飾），已合併到 `develop`（PR #3）。第 6 階段（AI 起稿）是選用，未做。
+- 任務欄「匯出工時表」連結：已完成實作與驗證，位於 `feature/timesheet-export`，只在本機，尚未推送。設計 `docs/superpowers/specs/2026-11-19-timesheet-export-design.md`，計畫 `docs/superpowers/plans/2026-11-19-timesheet-export.md`。
 
 ## 專案方向
 
@@ -61,6 +62,7 @@
   - 前端：`App.svelte` 只管頁籤、日期與橫幅；`QuestTab.svelte` 是第一階段的全部內容；`HallTab.svelte` 負責讀取、每 5 分鐘自動更新與選取。座位分配在 `web/src/lib/seats.js`，造型在 `web/src/lib/sprite.js`（由使用者編號固定算出）。
 - 像素引擎（`web/src/art/`，純 JavaScript，瀏覽器與 Node 共用）：`style.js` 調色盤與色階、`engine.js` 上色／木紋／外框／落影、`validate.js` 自動檢查、`assets/` 字元格樣板、`golden.json` 黃金指紋。開發工具在 `tools/art/`（索引色 PNG、目錄），輸出到被忽略的 `art-out/`。人物造型沿用 `lookFor` 的抽選，換畫法後每個人的造型類型不變（`looks-v1.json` 鎖住第二階段的結果）。
 - 大廳場景：原生 220×160，`--px` 決定倍率（桌面 3 倍、窄螢幕 2 倍可捲動）。`lib/hall-art.js` 組出背景與各排前方的桌子；`HallScene.svelte` 依排輸出「角色按鈕 → 桌子」。座位 32 個（吧檯 6、工作桌 20、沙發 6），成員上限仍是 16。人物有正面、背面、左右側面：吧檯的人面向吧檯（背面），工作桌分桌後（正面）、桌頭（側面）、桌前（背面），沙發是正面，上方 L 型沙發的側座面向左。工作中與發呆各有兩幀動畫（CSS 切換，減少動態效果時停止）。桌面 3 倍、視窗 1179px 以下 2 倍。
+- 匯出工時表：OpenProject 的 Timesheet PDF 匯出屬於網頁路由，只認瀏覽器登入（API token 打 `/cost_reports` 會被轉到 `/login`），所以本工具只產生深層連結。`/api/config` 回傳 `openProjectUrl`（即時模式為 origin，示例模式為 null）；`web/src/lib/timesheet.js` 依頂端所選日期算出週一到週日，組出舊版 `/cost_reports` 篩選網址（使用者 = me、`spent_on <>d`、`unit=-1`）。使用者在新分頁按 OpenProject 的「Export PDF timesheet」。公司 OpenProject 若升級並改用新路由，舊網址應該會被轉址，但要重新驗證。
 - `web/`：Svelte 5 + Vite。`web/src/lib/api.js` 是唯一呼叫 `/api` 的模組。元件不得使用 inline style、`style:` 或 `transition:`（會違反 CSP）。
 - 字型：俐方體11號 Cubic 11（SIL OFL 1.1），設計格線 12px，字級只用 12px／24px。
 
@@ -74,6 +76,7 @@
 - HEAD（bdef2c2）即時模式瀏覽器 UI 全程重驗（2026-11-16 下午，經使用者同意寫入）：唯讀、切換日期不殘留舊資料、釘上／撕下、在 #202 經 UI 新增 → 修改 → 刪除（連按送出只建立一筆）、422 原文訊息顯示在視窗內且輸入保留；無殘留、log 不含 token。細節見 `tasks/todo.md`。
 - 仍未在真實環境驗證：`write_unconfirmed`、`timeout`、`upstream_error` 的畫面提示（需故障注入，只有自動測試）；釘上視窗連選兩項的競態（UI 上無法重現）。這次即時模式重驗未能重測窄螢幕版面（瀏覽器視窗無法縮小）。
 - 公會大廳（2026-11-17）：示例模式全流程瀏覽器驗證、即時模式唯讀驗證皆通過；寫入請求只有本機成員名單，沒有對 OpenProject 的寫入。細節與未驗證項目見 `tasks/todo.md` 的第二階段。
+- 匯出工時表連結（2026-11-19）：即時模式點擊後，OpenProject 報表的篩選為本週與 me，並顯示 Export PDF timesheet 按鈕；示例模式不顯示連結。細節見 `tasks/todo.md`。
 
 ## 已知限制與注意事項
 
