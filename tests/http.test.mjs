@@ -63,7 +63,12 @@ test('health, me and config', async () => {
     assert.equal(health.headers['x-content-type-options'], 'nosniff');
     assert.equal(health.headers['content-security-policy'], CSP);
     assert.deepEqual((await send(port, '/api/me')).json, { id: 1, name: '示例冒險者' });
-    assert.deepEqual((await send(port, '/api/config')).json, { dailyTargetHours: 8 });
+    assert.deepEqual((await send(port, '/api/config')).json, { dailyTargetHours: 8, openProjectUrl: null });
+  });
+});
+test('config exposes the OpenProject origin for report links', async () => {
+  await withServer({ mode: 'live', openProjectUrl: 'http://op.example:8080' }, async port => {
+    assert.deepEqual((await send(port, '/api/config')).json, { dailyTargetHours: 8, openProjectUrl: 'http://op.example:8080' });
   });
 });
 test('time entries CRUD through the API', async () => {

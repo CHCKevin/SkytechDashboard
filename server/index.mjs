@@ -30,6 +30,8 @@ async function main() {
   const handler = createHandler({
     source, quests, hall, mode: config.mode, dailyTargetHours: config.dailyTargetHours,
     leaveWorkPackageId: config.leaveWorkPackageId, staticFiles,
+    // loadConfig 已正規化為 origin；示例模式為 null。
+    openProjectUrl: config.baseUrl,
   });
   const server = await listen(handler, { host: config.host, port: config.port });
   console.log(`${config.mode === 'demo' ? '示例模式' : '即時模式'}已啟動：http://${config.host}:${config.port}/`);

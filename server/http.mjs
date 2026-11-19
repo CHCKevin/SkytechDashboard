@@ -21,11 +21,12 @@ class HttpError extends Error {
 }
 
 // 路由表：[方法, 路徑樣式, 處理函式]；同一路徑有多個方法時，405 的 Allow 依此產生。
-function routes({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackageId }) {
+function routes({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackageId, openProjectUrl }) {
   return [
     ['GET', /^\/api\/health$/, () => ({ body: { status: 'ok', mode } })],
     ['GET', /^\/api\/me$/, async () => ({ body: await source.getMe() })],
-    ['GET', /^\/api\/config$/, () => ({ body: { dailyTargetHours } })],
+    // 只有 origin（不含 token），前端用來組 OpenProject 報表連結；示例模式為 null。
+    ['GET', /^\/api\/config$/, () => ({ body: { dailyTargetHours, openProjectUrl } })],
     ['GET', /^\/api\/time-entries$/, async ({ url }) => ({ body: await source.listEntries(parseDate(url.searchParams.get('date'))) })],
     ['POST', /^\/api\/time-entries$/, async ({ readBody }) => ({ status: 201, body: await source.createEntry(parseEntryInput(await readBody())) })],
     ['PATCH', /^\/api\/time-entries\/([^/]+)$/, async ({ match, readBody }) => {
@@ -68,8 +69,8 @@ function routes({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackage
   ];
 }
 
-export function createHandler({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackageId, staticFiles = {} }) {
-  const table = routes({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackageId });
+export function createHandler({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackageId, openProjectUrl = null, staticFiles = {} }) {
+  const table = routes({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackageId, openProjectUrl });
   return async (req, res) => {
     try {
       await route(req, res, table, staticFiles);
