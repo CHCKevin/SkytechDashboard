@@ -1,0 +1,325 @@
+import { render } from '../engine.js';
+import { generator } from '../random.js';
+
+// 坐姿人物，16×24，有正面、背面、左側面三套樣板，右側面由左側面左右翻轉。外框由引擎自動加上，所以四周留一格空白。
+// 坐姿的線索：手放在大腿上、膝蓋張開、小腿短。
+// 圖例：H 髮 h 髮暗 I 髮亮｜S 膚 s 膚暗 K 膚亮（光頭的頭頂反光）｜E 眼｜C 衣 c 衣暗 D 衣亮｜A 配件 a 配件暗｜P 褲 p 褲暗｜B 靴 b 靴暗
+// 髮型與頭飾都是「覆寫指定列」；頭飾後套用，所以會蓋住頭髮。髮型與頭飾的名稱與順序是造型抽選的一部分，不能改。
+
+const FRONT = {
+  base: [
+    '................',
+    '.....IIIIII.....',
+    '...HHIIIIIIHH...',
+    '..HHHHHHHHHHHH..',
+    '..HHHHHHHHHHHH..',
+    '..HhSSSSSSSShH..',
+    '..hhSSSSSSSShh..',
+    '..SSSESSSSESSS..',
+    '..SSSESSSSESSS..',
+    '..SSSSSSSSSSSS..',
+    '...sSSSSSSSSs...',
+    '....ssSSSSss....',
+    '...cCCCCCCCCc...',
+    '.ccCCCDDDDCCCcc.',
+    '.cCCCCCCCCCCCCc.',
+    '.cCCCCCCCCCCCCc.',
+    '.SPPPPPPPPPPPPS.',
+    '.pPPPPPPPPPPPPp.',
+    '..pPPp....pPPp..',
+    '..pPPp....pPPp..',
+    '.BBBBb....bBBBB.',
+    '.BBBBB....BBBBB.',
+    '................',
+    '................',
+  ],
+  hairs: {
+    short: {},
+    long: {
+      6: '.HhhSSSSSSSShhH.',
+      7: '.HhSSESSSSESShH.',
+      8: '.HhSSESSSSESShH.',
+      9: '.HhSSSSSSSSSShH.',
+      10: '.HhsSSSSSSSSshH.',
+      11: '.Hh.ssSSSSss.hH.',
+    },
+    spiky: { 1: '...I..I..I..I...', 2: '..HIHHIHHIHHIH..' },
+    bald: {
+      1: '.....SSSSSS.....',
+      2: '...SSKKSSSSSS...',
+      3: '..SSSKKSSSSSSS..',
+      4: '..SSSSSSSSSSSS..',
+      5: '..HSSSSSSSSSSH..',
+      6: '..hhSSSSSSSShh..',
+    },
+    bun: { 1: '......IIII......', 2: '.....hIIIIh.....' },
+  },
+  hats: {
+    none: {},
+    wizard: { 1: '.......AA.......', 2: '.....AAAAAA.....', 3: '...AAAAAAAAAA...', 4: '.aaaaaaaaaaaaaa.' },
+    helmet: { 1: '.....AAAAAA.....', 2: '...AAAAAAAAAA...', 3: '..AAAAAAAAAAAA..', 4: '..aaaaaaaaaaaa..' },
+    hood: {
+      1: '.....CCCCCC.....',
+      2: '...CCCCCCCCCC...',
+      3: '..CCCCCCCCCCCC..',
+      4: '..CCCCCCCCCCCC..',
+      5: '..CcSSSSSSSScC..',
+      6: '..ccSSSSSSSScc..',
+    },
+    band: { 4: '..AAAAAAAAAAAA..' },
+    cap: { 2: '...AAAAAAAAAA...', 3: '..AAAAAAAAAAAA..', 4: '..aaaaaaaaaaaaa.' },
+  },
+  // 閉眼：拿掉上排眼睛，下排改成兩條 2 格寬的閉眼線。
+  closeEyes: rows => {
+    for (const x of [5, 10]) put(rows, 7, x, 'S');
+    for (const x of [4, 5, 10, 11]) put(rows, 8, x, 'E');
+  },
+};
+
+// 背面：看到後腦、耳朵、背部與坐在椅子上的臀部，小腿從椅子前緣垂下。
+const BACK = {
+  base: [
+    '................',
+    '.....IIIIII.....',
+    '...HHIIIIIIHH...',
+    '..HHHHHHHHHHHH..',
+    '..HHHHHHHHHHHH..',
+    '..HHHHHHHHHHHH..',
+    '..HHHHHHHHHHHH..',
+    '.SHHHHHHHHHHHHS.',
+    '.ShHHHHHHHHHHhS.',
+    '..hhHHHHHHHHhh..',
+    '...shhhhhhhhs...',
+    '....ssSSSSss....',
+    '...cCCCCCCCCc...',
+    '.ccCCCCCCCCCCcc.',
+    '.cCCCCCCCCCCCCc.',
+    '.cCCCCCCCCCCCCc.',
+    '.ScCCCCCCCCCCcS.',
+    '..cccccccccccc..',
+    '..PPPPPPPPPPPP..',
+    '...pPp....pPp...',
+    '...pPp....pPp...',
+    '...bBb....bBb...',
+    '................',
+    '................',
+  ],
+  hairs: {
+    short: {},
+    long: {
+      9: '..hHHHHHHHHHHh..',
+      10: '..hHHHHHHHHHHh..',
+      11: '..hHHHHHHHHHHh..',
+      12: '.chHHHHHHHHHHhc.',
+      13: '.ccHHHHHHHHHHcc.',
+      14: '.cChhhhhhhhhhCc.',
+    },
+    spiky: { 1: '...I..I..I..I...', 2: '..HIHHIHHIHHIH..' },
+    bald: {
+      1: '.....SSSSSS.....',
+      2: '...SSKKSSSSSS...',
+      3: '..SSSKKSSSSSSS..',
+      4: '..SSSSSSSSSSSS..',
+      5: '..SSSSSSSSSSSS..',
+      6: '..SSSSSSSSSSSS..',
+      7: '.SSSSSSSSSSSSSS.',
+      8: '.SSSSSSSSSSSSSS.',
+      9: '..sSSSSSSSSSSs..',
+      10: '...ssSSSSSSss...',
+    },
+    bun: { 1: '......IIII......', 2: '.....hIIIIh.....' },
+  },
+  hats: {
+    none: {},
+    wizard: { 1: '.......AA.......', 2: '.....AAAAAA.....', 3: '...AAAAAAAAAA...', 4: '.aaaaaaaaaaaaaa.' },
+    helmet: { 1: '.....AAAAAA.....', 2: '...AAAAAAAAAA...', 3: '..AAAAAAAAAAAA..', 4: '..AAAAAAAAAAAA..', 5: '..aaaaaaaaaaaa..' },
+    hood: {
+      1: '.....CCCCCC.....',
+      2: '...CCCCCCCCCC...',
+      3: '..CCCCCCCCCCCC..',
+      4: '..CCCCCCCCCCCC..',
+      5: '..CCCCCCCCCCCC..',
+      6: '..CCCCCCCCCCCC..',
+      7: '..CCCCCCCCCCCC..',
+      8: '..CCCCCCCCCCCC..',
+      9: '..cCCCCCCCCCCc..',
+      10: '..ccCCCCCCCCcc..',
+      11: '...cccCCCCccc...',
+    },
+    band: { 4: '..AAAAAAAAAAAA..' },
+    cap: { 2: '...AAAAAAAAAA...', 3: '..AAAAAAAAAAAA..', 4: '..aaaaaaaaaaaa..' },
+  },
+  closeEyes: () => {},
+};
+
+// 左側面（面向左邊）：側臉、手放在大腿上、大腿往左伸、小腿垂下。
+const LEFT = {
+  base: [
+    '................',
+    '......IIIII.....',
+    '.....IIIIHHH....',
+    '....HHHHHHHHH...',
+    '....HHHHHHHHHH..',
+    '....SSSShhHHHH..',
+    '...SSSSSShhHHH..',
+    '...SESSSSSHHHH..',
+    '...SESSSSSSHHh..',
+    '..SSSSSSSSSShh..',
+    '....sSSSSSSs....',
+    '......sSSs......',
+    '.....cCCCCc.....',
+    '....cCCCCCCc....',
+    '....cCCCCCCc....',
+    '....cCSSCCCc....',
+    '....cCCCCCCc....',
+    '..PPPPPPPPPP....',
+    '..pPPPPPPPPp....',
+    '..PPp...........',
+    '..PPp...........',
+    '.BBBb...........',
+    '................',
+    '................',
+  ],
+  hairs: {
+    short: {},
+    long: {
+      9: '..SSSSSSSSSHHh..',
+      10: '....sSSSSSHHHh..',
+      11: '......sSSHHHh...',
+      12: '.....cCCCHHh....',
+    },
+    spiky: { 1: '......I.I.I.....', 2: '.....IIIIHHH....' },
+    bald: {
+      1: '......SSSSS.....',
+      2: '.....SKKSSSS....',
+      3: '....SSKKSSSSS...',
+      4: '....SSSSSSSSSS..',
+      5: '....SSSSSSSSSS..',
+      6: '...SSSSSSSSSSS..',
+      7: '...SESSSSSSSSS..',
+      8: '...SESSSSSSSSs..',
+      9: '..SSSSSSSSSSSs..',
+    },
+    bun: { 1: '......IIII.II...', 2: '.....IIIIHHII...' },
+  },
+  hats: {
+    none: {},
+    wizard: { 1: '.......AA.......', 2: '.....AAAAAA.....', 3: '....AAAAAAAA....', 4: '..aaaaaaaaaaaa..' },
+    helmet: { 1: '......AAAAA.....', 2: '.....AAAAAAA....', 3: '....AAAAAAAAA...', 4: '....aaaaaaaaaa..' },
+    hood: {
+      1: '......CCCCC.....',
+      2: '.....CCCCCCC....',
+      3: '....CCCCCCCCC...',
+      4: '....CCCCCCCCCC..',
+      5: '....cSSSSCCCCC..',
+      6: '...cSSSSSSCCCC..',
+      7: '...SESSSSSCCCC..',
+      8: '...SESSSSSSCCc..',
+      9: '..SSSSSSSSSScc..',
+    },
+    band: { 4: '....AAAAAAAAAA..' },
+    cap: { 2: '.....AAAAAAA....', 3: '....AAAAAAAAA...', 4: '.aaaaaaaaaaaaa..' },
+  },
+  // 側面只有一隻眼睛：閉眼時變成一條 2 格寬的線。
+  closeEyes: rows => {
+    put(rows, 7, 4, 'S');
+    put(rows, 8, 5, 'E');
+  },
+};
+
+const VIEWS = { front: FRONT, back: BACK, left: LEFT };
+export const FACINGS = ['front', 'back', 'left', 'right'];
+
+export const HAIR_NAMES = Object.keys(FRONT.hairs);
+// 「沒有頭飾」出現三次，讓大約三分之一的人不戴東西（與第二階段相同）。
+export const HAT_POOL = ['none', 'none', 'none', 'wizard', 'helmet', 'hood', 'band', 'cap'];
+const COUNTS = { hairColor: 6, skin: 4, cloth: 8, accent: 5 };
+const range = n => Array.from({ length: n }, (_, i) => i);
+
+// 動畫：工作中是上半身（第 0–16 列）往下 1 格，發呆是頭部（第 0–10 列）往下 1 格；休息不動。
+export const ANIMATIONS = {
+  working: { frames: 2, frameMs: 300, moves: 16 },
+  idle: { frames: 2, frameMs: 700, moves: 10 },
+  resting: { frames: 1, frameMs: 0, moves: 0 },
+};
+
+// 由使用者編號決定造型。抽選順序與每項的選項數量都和第二階段的 lookFor 相同（looks-v1.json 鎖住結果），
+// 所以換成新畫法後，每個人仍是同一種髮型、髮色、膚色、衣服與配件顏色。
+export function lookIndices(userId) {
+  const random = generator(userId);
+  const pick = count => Math.floor(random() * count);
+  return {
+    hair: HAIR_NAMES[pick(HAIR_NAMES.length)],
+    hat: HAT_POOL[pick(HAT_POOL.length)],
+    hairColor: pick(COUNTS.hairColor),
+    skin: pick(COUNTS.skin),
+    cloth: pick(COUNTS.cloth),
+    accent: pick(COUNTS.accent),
+  };
+}
+
+function put(rows, y, x, char) {
+  rows[y] = rows[y].slice(0, x) + char + rows[y].slice(x + 1);
+}
+
+// 把第 0 列到第 last 列整塊往下移 1 格（第 0 列本來就是空的）。
+function shiftDown(rows, last) {
+  for (let y = last; y > 0; y -= 1) rows[y] = rows[y - 1];
+  rows[0] = '.'.repeat(rows[0].length);
+}
+
+export const character = {
+  id: 'character/seated',
+  // v4：加上背面、左右側面與兩幀動畫。
+  version: 4,
+  size: [16, 24],
+  anchor: [8, 21],
+  maxColors: 18,
+  shadow: false,
+  legend: {
+    H: ['hair', 1], h: ['hair', 0], I: ['hair', 2],
+    S: ['skin', 1], s: ['skin', 0], K: ['skin', 2],
+    E: 'eye',
+    C: ['cloth', 1], c: ['cloth', 0], D: ['cloth', 2],
+    A: ['accent', 1], a: ['accent', 0],
+    P: ['pants', 1], p: ['pants', 0],
+    B: ['boots', 1], b: ['boots', 0],
+  },
+  variants: {
+    status: ['working', 'idle', 'resting'],
+    facing: FACINGS,
+    frame: [0, 1],
+    hair: HAIR_NAMES,
+    hat: Object.keys(FRONT.hats),
+    hairColor: range(COUNTS.hairColor),
+    skin: range(COUNTS.skin),
+    cloth: range(COUNTS.cloth),
+    accent: range(COUNTS.accent),
+  },
+  rows(variant) {
+    const view = VIEWS[variant.facing === 'right' ? 'left' : variant.facing];
+    let rows = [...view.base];
+    for (const [y, row] of Object.entries(view.hairs[variant.hair])) rows[y] = row;
+    for (const [y, row] of Object.entries(view.hats[variant.hat])) rows[y] = row;
+    if (variant.status === 'resting') view.closeEyes(rows);
+    const animation = ANIMATIONS[variant.status];
+    if (variant.frame > 0 && animation.frames > 1) shiftDown(rows, animation.moves);
+    if (variant.facing === 'right') rows = rows.map(row => [...row].reverse().join(''));
+    return rows;
+  },
+  slots: variant => ({
+    hair: `hair${variant.hairColor}`,
+    skin: `skin${variant.skin}`,
+    cloth: `cloth${variant.cloth}`,
+    accent: `accent${variant.accent}`,
+  }),
+};
+
+export function renderCharacter(userId, status = 'working', { facing = 'front', frame = 0 } = {}) {
+  return render(character, { variant: { ...lookIndices(userId), status, facing, frame } });
+}
+
+// 一個狀態的所有幀（休息只有 1 幀）。
+export function renderFrames(userId, status = 'working', facing = 'front') {
+  return range(ANIMATIONS[status].frames).map(frame => renderCharacter(userId, status, { facing, frame }));
+}

@@ -115,46 +115,44 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .tab { background: var(--wood); color: var(--parchment); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 2px 12px; cursor: pointer; white-space: nowrap; }
 .tab[aria-selected='true'] { background: var(--parchment); color: var(--ink); text-shadow: none; }
 
-/* 公會大廳場景 */
-.scene { background: repeating-linear-gradient(90deg, var(--wood-light) 0 22px, var(--wood) 22px 24px); border: 6px solid var(--ink); box-shadow: inset 0 0 0 3px var(--wood-dark); padding: 12px; display: grid; gap: 16px; min-width: 0; }
-.seat { min-width: 0; min-height: 92px; display: flex; align-items: flex-end; justify-content: center; }
-.seat:empty::after { content: ''; width: 20px; height: 12px; margin-bottom: 4px; background: var(--wood-dark); border: 3px solid var(--ink); }
-
-/* 吧檯 */
-.zone-bar { display: grid; gap: 4px; }
-.shelf { display: flex; gap: 12px; align-items: flex-end; justify-content: center; height: 30px; padding: 0 12px; background: var(--wall-dark); border: 3px solid var(--ink); }
-.bottle { width: 10px; height: 18px; border: 2px solid var(--ink); background: var(--leaf); }
-.bottle-2 { height: 14px; background: var(--seal); }
-.bottle-3 { height: 22px; background: var(--brass); }
-.counter { height: 18px; background: var(--wood-dark); border: 3px solid var(--ink); box-shadow: inset 0 3px 0 var(--brass); }
-.stools { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
-
-/* 工作桌與沙發 */
-.scene-lower { display: grid; grid-template-columns: 4fr 3fr; gap: 12px; align-items: start; }
-.zone-desk { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 8px; }
-.table { height: 24px; background: var(--parchment-dark); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
-.table-4 { grid-column: span 2; }
-.zone-sofa { display: grid; gap: 12px; padding: 8px; background: var(--wood-dark); border: 3px dashed var(--brass); }
-.sofa { display: grid; gap: 4px; background: #7a3340; border: 3px solid var(--ink); border-top-width: 12px; box-shadow: 3px 3px 0 var(--ink); }
-.sofa-long { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.sofa-single { width: 44%; justify-self: center; }
-.sofa .seat:empty::after { display: none; }
+/* 公會大廳場景：原生 220×160 美術像素，用整數倍放大（--px 是一個美術像素的 CSS 大小）。
+   背景、桌子、角色都是像素圖；每個位子的位置在 seats.css（由 seats.js 產生）。 */
+.scene { --px: 3px; position: relative; box-sizing: content-box; width: calc(var(--px) * 220); height: calc(var(--px) * 160); margin: 0 auto; border: 6px solid var(--ink); background: var(--wood); }
+.scene-layer { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+/* 圖層前後完全由 DOM 順序決定（背景 → 每排角色 → 該排桌子 → 下一排），所以這裡不設 z-index。 */
+.seat { position: absolute; width: calc(var(--px) * 16); height: calc(var(--px) * 24); }
 
 /* 成員 */
-.member { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; min-width: 0; padding: 2px 0; background: none; border: none; cursor: pointer; color: var(--parchment); text-shadow: 1px 1px 0 var(--ink); }
-.member:hover .sprite { transform: translateY(-3px); }
-.member[aria-pressed='true'] { outline: 3px solid var(--brass); outline-offset: 0; background: rgba(0, 0, 0, 0.25); }
-.sprite { width: 36px; height: 48px; display: block; }
-.sprite-small { width: 24px; height: 32px; display: block; flex: none; }
+.member { position: relative; display: block; width: 100%; height: 100%; padding: 0; background: none; border: none; cursor: pointer; color: var(--ink); }
+.member .sprite { width: 100%; height: 100%; }
+.member:hover .sprite { transform: translateY(calc(var(--px) * -1)); }
+.member[aria-pressed='true'] { outline: 3px solid var(--brass); outline-offset: 2px; }
+/* 狀態圖示在頭頂正上方（角色圖第 0 列是空的），與名牌都在桌子之上，才不會被桌子擋住。 */
+.member .status-icon { position: absolute; top: calc(var(--px) * 1 - 22px); left: 50%; z-index: 2; transform: translateX(-50%); }
+/* 工作桌的兩個座位只隔 16 格，名牌放不下，所以只在指向、鍵盤聚焦或選取時顯示；全名在按鈕的無障礙名稱與右側名單。 */
+.member-name { display: none; position: absolute; top: calc(100% - var(--px) * 3); left: 50%; z-index: 3; transform: translateX(-50%); padding: 0 3px; white-space: nowrap; line-height: 1.25; background: var(--paper); border: 2px solid var(--ink); }
+.member:hover .member-name, .member:focus-visible .member-name, .member[aria-pressed='true'] .member-name { display: block; }
+.sprite { width: 48px; height: 72px; display: block; }
+.sprite-small { width: 32px; height: 48px; display: block; flex: none; }
 .status-icon { width: 22px; height: 22px; display: block; padding: 2px; background: var(--paper); border: 2px solid var(--ink); }
-.member-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 800px) {
-  .scene { padding: 8px; gap: 10px; }
-  .seat { min-height: 76px; }
-  .sprite { width: 24px; height: 32px; }
-  .scene-lower { gap: 8px; }
-  .zone-desk { gap: 4px; }
-  .zone-sofa { padding: 4px; }
+/* 角色動畫：兩幀輪流顯示。step-end 讓每段 keyframe 維持起點的值，visibility 才會真的切換。
+   時間與 web/src/art/assets/character.js 的 ANIMATIONS 相同：工作中每幀 300ms、發呆每幀 700ms。 */
+.sprite .frame-1 { visibility: hidden; }
+.anim-working .frame-0 { animation: frame-first 600ms step-end infinite; }
+.anim-working .frame-1 { animation: frame-second 600ms step-end infinite; }
+.anim-idle .frame-0 { animation: frame-first 1400ms step-end infinite; }
+.anim-idle .frame-1 { animation: frame-second 1400ms step-end infinite; }
+.delay-1 .frame { animation-delay: -250ms; }
+.delay-2 .frame { animation-delay: -500ms; }
+@keyframes frame-first { 0% { visibility: visible; } 50% { visibility: hidden; } 100% { visibility: hidden; } }
+@keyframes frame-second { 0% { visibility: hidden; } 50% { visibility: visible; } 100% { visibility: visible; } }
+@media (prefers-reduced-motion: reduce) {
+  .sprite .frame { animation: none !important; }
+}
+/* 3 倍的場景寬 672px（含外框）。兩欄版面的場景欄約為 (視窗寬 − 60) × 0.615，視窗要約 1170px 以上才放得下，
+   所以 1179px 以下改用 2 倍（452px）；單欄（800px 以下）時比畫面寬就左右捲動。 */
+@media (max-width: 1179px) {
+  .scene { --px: 2px; }
 }
 
 /* 大廳面板 */
@@ -166,4 +164,4 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .member-head p { margin: 0; }
 .suggestions button:disabled { opacity: 0.5; cursor: not-allowed; }
 .suggestions button[aria-pressed='true'] { background: var(--brass); }
-.hall-stage { min-width: 0; }
+.hall-stage { min-width: 0; overflow-x: auto; }

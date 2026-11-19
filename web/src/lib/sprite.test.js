@@ -17,18 +17,18 @@ test('every part of the look varies across users', () => {
     expect(new Set(looks.map(look => look[key])).size, key).toBeGreaterThanOrEqual(4);
   }
 });
-test('sprites are 12 by 16 and every rect stays inside the grid', () => {
+test('sprites are 16 by 24 and every rect stays inside the grid', () => {
   for (const id of [1, 18, 23, 999, 123456]) {
     for (const status of ['working', 'idle', 'resting']) {
       const art = spriteFor(id, status);
-      expect([art.width, art.height]).toEqual([12, 16]);
+      expect([art.width, art.height]).toEqual([16, 24]);
       expect(art.rects.length).toBeGreaterThan(10);
       for (const rect of art.rects) {
         expect(rect.w).toBeGreaterThanOrEqual(1);
         expect(rect.x).toBeGreaterThanOrEqual(0);
-        expect(rect.x + rect.w).toBeLessThanOrEqual(12);
+        expect(rect.x + rect.w).toBeLessThanOrEqual(16);
         expect(rect.y).toBeGreaterThanOrEqual(0);
-        expect(rect.y).toBeLessThan(16);
+        expect(rect.y).toBeLessThan(24);
         expect(rect.color).toMatch(/^#[0-9a-f]{6}$/);
       }
     }
@@ -46,13 +46,18 @@ test('rects in one row never overlap and have unique positions', () => {
     }
   }
 });
-test('resting closes the eyes and changes nothing else', () => {
-  const colors = art => new Set(art.rects.map(rect => rect.color));
+test('resting closes the eyes (a wider, flat eye line) and changes nothing else', () => {
+  const eyeCells = art => art.rects.filter(rect => rect.color === EYE_COLOR).reduce((sum, rect) => sum + rect.w, 0);
   const awake = spriteFor(18, 'working');
   const asleep = spriteFor(18, 'resting');
-  expect(colors(awake).has(EYE_COLOR)).toBe(true);
-  expect(colors(asleep).has(EYE_COLOR)).toBe(false);
-  expect(spriteFor(18, 'idle')).toEqual(awake);
+  // 張眼：兩隻眼睛各 1×2；閉眼：兩條 2×1 的閉眼線。
+  expect(eyeCells(awake)).toBe(4);
+  expect(eyeCells(asleep)).toBe(4);
+  expect(new Set(asleep.rects.filter(rect => rect.color === EYE_COLOR).map(rect => rect.y)).size).toBe(1);
+  expect(asleep).not.toEqual(awake);
+  // 發呆與工作中的第一幀相同，差別在動畫（第二幀）。
+  expect(spriteFor(18, 'idle').rects).toEqual(awake.rects);
+  expect(spriteFor(18, 'idle').frames[1]).not.toEqual(awake.frames[1]);
   const area = art => art.rects.reduce((sum, rect) => sum + rect.w, 0);
   expect(area(asleep)).toBe(area(awake));
 });
@@ -61,5 +66,25 @@ test('each status has an icon and a label', () => {
   for (const status of ['working', 'idle', 'resting']) {
     expect(STATUS_ICONS[status].rects.length).toBeGreaterThan(0);
     expect([STATUS_ICONS[status].width, STATUS_ICONS[status].height]).toEqual([7, 7]);
+  }
+});
+test('every sprite stays within 150 SVG rects (acceptance limit), checked for users 1-1000', () => {
+  for (let id = 1; id <= 1000; id += 1) {
+    for (const status of ['working', 'resting']) expect(spriteFor(id, status).rects.length).toBeLessThanOrEqual(150);
+  }
+});
+test('working and idle sprites have two frames, resting has one; every facing works', () => {
+  for (const facing of ['front', 'back', 'left', 'right']) {
+    expect(spriteFor(18, 'working', facing).frames).toHaveLength(2);
+    expect(spriteFor(18, 'idle', facing).frames).toHaveLength(2);
+    expect(spriteFor(18, 'resting', facing).frames).toHaveLength(1);
+    expect(spriteFor(18, 'working', facing).rects).toBe(spriteFor(18, 'working', facing).frames[0]);
+  }
+  expect(spriteFor(18, 'working', 'back')).not.toEqual(spriteFor(18, 'working', 'front'));
+});
+test('status icons use colors from the pixel palette', async () => {
+  const { PALETTE } = await import('../art/style.js');
+  for (const icon of Object.values(STATUS_ICONS)) {
+    for (const rect of icon.rects) expect(PALETTE).toContain(rect.color);
   }
 });
