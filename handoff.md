@@ -5,7 +5,7 @@
 - 第一階段（My time tracking 任務布告欄）已完成實作與驗證，並已合併到 `develop`（PR #1，分支 `feature/quest-board` 已刪除）。
 - 第二階段（公會大廳）已完成實作與驗證，已合併到 `develop`（PR #2）。
 - 第三階段（像素畫面優化）：路線圖第 0–5 階段全部完成（研究、像素引擎、換上大廳、動畫與四個方向、裝飾），已合併到 `develop`（PR #3）。第 6 階段（AI 起稿）是選用，未做。
-- 任務欄「匯出工時表」連結（直接產生 OpenProject Timesheet PDF）：已完成實作與驗證，位於 `feature/timesheet-export`，只在本機，尚未推送。設計 `docs/superpowers/specs/2026-11-19-timesheet-export-design.md`，計畫 `docs/superpowers/plans/2026-11-19-timesheet-export.md`。
+- 任務欄「匯出工時表」連結（直接產生 OpenProject Timesheet PDF）：已完成實作與驗證，位於 `feature/timesheet-export`，已開 PR #4 到 `develop`。設計 `docs/superpowers/specs/2026-11-19-timesheet-export-design.md`，計畫 `docs/superpowers/plans/2026-11-19-timesheet-export.md`。
 
 ## 專案方向
 
