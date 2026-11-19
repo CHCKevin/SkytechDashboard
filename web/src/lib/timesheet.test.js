@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { formatWeekLabel, timesheetReportUrl, weekRange } from './timesheet.js';
+import { formatWeekLabel, timesheetPdfUrl, weekRange } from './timesheet.js';
 
 describe('weekRange', () => {
   test.each([
@@ -14,9 +14,9 @@ describe('weekRange', () => {
   });
 });
 
-test('timesheetReportUrl uses the verified legacy cost report filters', () => {
-  const url = new URL(timesheetReportUrl('http://op.example:8080', '2026-11-19'));
-  expect(url.origin + url.pathname).toBe('http://op.example:8080/cost_reports');
+test('timesheetPdfUrl exports the PDF with the verified legacy cost report filters', () => {
+  const url = new URL(timesheetPdfUrl('http://op.example:8080', '2026-11-19'));
+  expect(url.origin + url.pathname).toBe('http://op.example:8080/cost_reports.pdf');
   expect([...url.searchParams]).toEqual([
     ['set_filter', '1'],
     ['fields[]', 'user_id'], ['operators[user_id]', '='], ['values[user_id][]', 'me'],

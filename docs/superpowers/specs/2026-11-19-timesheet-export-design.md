@@ -1,7 +1,7 @@
 # 任務欄：匯出工時表（OpenProject Timesheet PDF）設計
 
 日期：2026-11-19
-狀態：已與使用者確認設計方向（B1：深層連結）
+狀態：已與使用者確認設計方向（B1：深層連結）；同日修訂為直接連到 PDF 匯出，見文末「修訂」
 
 ## 目標
 
@@ -54,7 +54,7 @@ OpenProject 的網頁路由（包括 timesheet 匯出）只認瀏覽器 session�
 ### 前端：`web/src/lib/timesheet.js`（新增，純函式）
 
 - `weekRange(day)` → `{ start, end }`：給定 `YYYY-MM-DD`，回傳該週週一與週日，格式都是 `YYYY-MM-DD`。沿用 `dates.js` 的本地日期計算方式，避免 `toISOString()` 造成的跨日錯誤。
-- `timesheetReportUrl(origin, day)` → 字串：用 `URL` 與 `URLSearchParams` 組出上面的網址。參數順序固定，方便測試。
+- `timesheetPdfUrl(origin, day)` → 字串：用 `URL` 與 `URLSearchParams` 組出網址（修訂後路徑為 `/cost_reports.pdf`）。參數順序固定，方便測試。
 - `formatWeekLabel(day)` → `'11/16–11/22'`。
 
 ### 前端：`web/src/components/QuestTab.svelte`
@@ -72,7 +72,7 @@ OpenProject 的網頁路由（包括 timesheet 匯出）只認瀏覽器 session�
 
 - `web/src/lib/timesheet.test.js`：
   - `weekRange` 測週一、週三、週日、跨月（2026-11-30 → 11-30～12-06）、跨年（2026-12-31 → 12-28～2027-01-03）。
-  - `timesheetReportUrl` 產生的參數與驗證過的格式完全相同（以 `URLSearchParams` 解析後比對）。
+  - `timesheetPdfUrl` 產生的參數與驗證過的格式完全相同（以 `URLSearchParams` 解析後比對）。
   - `formatWeekLabel` 的輸出格式。
 - `tests/`（node --test）：`/api/config` 即時模式回傳 origin，示例模式回傳 `null`。
 - `QuestTab` 元件測試：
@@ -86,3 +86,14 @@ OpenProject 的網頁路由（包括 timesheet 匯出）只認瀏覽器 session�
 - 不代使用者登入，不下載或轉存 PDF。
 - 不在公會大廳加入匯出功能。
 - 不提供其他範圍（例如月、自訂區間）或其他使用者。
+
+## 修訂（2026-11-19）：直接連到 PDF 匯出
+
+使用者希望開啟連結後不必再按「Export PDF timesheet」。檢查按鈕後發現，它指向 `/cost_reports.pdf`，網址不帶篩選，由 JavaScript 攔截點擊，篩選條件從 session 讀取。
+
+經使用者同意，在公司 OpenProject 實測一次：
+1. 先開啟上週（11/9–11/15）的報表頁，讓 session 存著上週的篩選。
+2. 再開啟 `/cost_reports.pdf?` 加上本週的同一組篩選參數。
+3. 結果：OpenProject 排入背景工作，跳到 `/job_statuses/:id` 顯示 Export completed，並自動下載 PDF。PDF 標題是 2026-11-16 - 2026-11-19，內容只有使用者本週的工時。可見網址上的篩選在同一個請求中套用，不會沿用 session。
+
+因此連結改為 `{origin}/cost_reports.pdf?`（篩選參數不變），點擊後在新分頁直接產生並下載 PDF。每點一次，OpenProject 會產生一份匯出檔，和按原生按鈕相同。

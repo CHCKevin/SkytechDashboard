@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import * as api from '../lib/api.js';
-  import { formatWeekLabel, timesheetReportUrl } from '../lib/timesheet.js';
+  import { formatWeekLabel, timesheetPdfUrl } from '../lib/timesheet.js';
   import AcceptDialog from './AcceptDialog.svelte';
   import PinDialog from './PinDialog.svelte';
   import QuestBoard from './QuestBoard.svelte';
@@ -37,7 +37,7 @@
   });
 
   // 報表連結跟著頂端所選日期換週；示例模式沒有 OpenProject 網址就不顯示。
-  const timesheetHref = $derived(openProjectUrl ? timesheetReportUrl(openProjectUrl, date) : null);
+  const timesheetHref = $derived(openProjectUrl ? timesheetPdfUrl(openProjectUrl, date) : null);
 
   $effect(() => {
     loadEntries(date);

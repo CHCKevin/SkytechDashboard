@@ -285,3 +285,10 @@
 - 示例模式（埠號 4184）：`/api/config` 的 openProjectUrl 為 null，不顯示連結。
 - 未驗證：實際按下 Export PDF timesheet 產生的 PDF（使用者在設計階段已用同一網址確認）。
 - 驗證後已刪除暫存設定（含 token 副本）與資料。
+
+### 修訂：直接連到 PDF 匯出（2026-11-19）
+
+- [x] 檢查原生按鈕：`/cost_reports.pdf`（網址不帶篩選），由 JS 攔截點擊並從 session 讀取篩選；進度視窗是 `/job_statuses/_job_uuid_/dialog`
+- [x] 實測（經使用者同意，觸發一次真實匯出）：session 先設為上週，再開啟 `/cost_reports.pdf?` 加上本週篩選 → job 狀態頁顯示 Export completed 並自動下載。以 API 取回附件 #1171 檢查：PDF 標題 2026-11-16 - 2026-11-19，內容只有本週自己的工時，合計 16:00 h。檢查後已刪除暫存的 PDF。
+- [x] 連結改指向 `/cost_reports.pdf`（timesheetReportUrl → timesheetPdfUrl）；測試：後端 127、前端 306，全數通過；`npm run build` 成功
+- 未重測：改版後的連結沒有再從本工具點一次（避免多產生一份匯出），網址與實測時相同，由單元測試確認

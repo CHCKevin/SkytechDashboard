@@ -48,14 +48,14 @@ test('accepting a quest creates an entry and refreshes the list', async () => {
   expect(await screen.findByText('2 / 8h')).toBeTruthy();
   expect(screen.queryByRole('dialog')).toBeNull();
 });
-test('timesheet link opens the OpenProject report for the selected week', async () => {
+test('timesheet link exports the OpenProject PDF for the selected week', async () => {
   api.getConfig.mockResolvedValue({ dailyTargetHours: 8, openProjectUrl: 'http://op.example:8080' });
   render(App);
   const link = await screen.findByRole('link', { name: '匯出工時表（11/16–11/22）↗' });
   expect(link.getAttribute('target')).toBe('_blank');
   expect(link.getAttribute('rel')).toBe('noopener noreferrer');
   const url = new URL(link.getAttribute('href'));
-  expect(url.origin + url.pathname).toBe('http://op.example:8080/cost_reports');
+  expect(url.origin + url.pathname).toBe('http://op.example:8080/cost_reports.pdf');
   expect(url.searchParams.getAll('values[spent_on][]')).toEqual(['2026-11-16', '2026-11-22']);
   await userEvent.click(screen.getByRole('button', { name: '前一天' }));
   const previous = await screen.findByRole('link', { name: '匯出工時表（11/9–11/15）↗' });
