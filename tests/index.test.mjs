@@ -121,6 +121,7 @@ test('live mode reports source errors as JSON and never prints the token', async
   const closed = await freePort();
   const output = await runServer({ mode: 'live', baseUrl: `http://127.0.0.1:${closed}/`, apiToken: 'FAKE_TOKEN_123' }, async base => {
     assert.deepEqual(await (await fetch(`${base}/api/health`)).json(), { status: 'ok', mode: 'live' });
+    assert.deepEqual(await (await fetch(`${base}/api/config`)).json(), { dailyTargetHours: 8, openProjectUrl: `http://127.0.0.1:${closed}` });
     const response = await fetch(`${base}/api/me`);
     const body = await response.text();
     assert.equal(response.status, 502);
