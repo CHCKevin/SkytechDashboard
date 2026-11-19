@@ -4,3 +4,8 @@ export function entryMeta({ activityName, comment }) {
   const note = (comment ?? '').replace(/\r\n?/g, '\n').trim();
   return [activityName, note].filter(Boolean).join(' · ');
 }
+
+// 工作包在 OpenProject 的 Activity 頁（工時、備註與變更紀錄都在這裡）。
+export function activityUrl(origin, workPackageId) {
+  return new URL(`/work_packages/${workPackageId}/activity`, origin).href;
+}

@@ -1,4 +1,5 @@
 <script>
+  import { onMount } from 'svelte';
   import * as api from '../lib/api.js';
   import HallScene from './HallScene.svelte';
   import MemberPanel from './MemberPanel.svelte';
@@ -15,6 +16,7 @@
   let updatedAt = $state('');
   let selectedId = $state(null);
   let recruiting = $state(false);
+  let openProjectUrl = $state(null);
   // 這兩個刻意不是 $state：load 在 effect 中被呼叫，讀到響應式狀態會讓 effect 依賴自己寫入的值。
   let latest = 0;
   let loadedDate = null;
@@ -58,6 +60,11 @@
 
   const refresh = () => load(date);
 
+  // 只用來把工作包編號做成 OpenProject 連結；讀不到（或示例模式）就顯示純文字，不打擾使用者。
+  onMount(() => {
+    api.getConfig().then(config => { openProjectUrl = config.openProjectUrl ?? null; }, () => {});
+  });
+
   $effect(() => {
     load(date);
   });
@@ -98,7 +105,7 @@
     <h2 class="board-title">🏰 公會大廳</h2>
     <HallScene {members} {selectedId} onselect={id => (selectedId = selectedId === id ? null : id)} />
   </div>
-  <MemberPanel {members} {selected} {date} {loading} {loadError} {refreshError} {updatedAt}
+  <MemberPanel {members} {selected} {date} {openProjectUrl} {loading} {loadError} {refreshError} {updatedAt}
     onselect={id => (selectedId = id)} onback={() => (selectedId = null)}
     onrecruit={() => (recruiting = true)} onremove={remove} onrefresh={refresh} />
 </main>

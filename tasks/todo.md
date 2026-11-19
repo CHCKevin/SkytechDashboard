@@ -304,3 +304,15 @@
 驗證（2026-11-19）：
 - 測試：後端 127、前端 312，全數通過；`npm run build` 成功。
 - 即時模式（埠號 4183、複製的大廳名單）：11/17 #202 的兩行備註在任務欄與大廳成員面板都分成兩行顯示，computed `white-space` 為 `pre-line`。驗證後已刪除暫存設定與資料。
+
+## 工作包編號連到 OpenProject Activity（2026-11-19）
+
+分支：`feature/entry-comment-newlines`（與備註換行同一批，改的是同樣的元件）
+
+- [x] `activityUrl(origin, id)` → `{OpenProject}/work_packages/{id}/activity`
+- [x] 新元件 `EntryTitle.svelte`：知道網址時 `#編號` 變成連結（另開分頁、`noopener noreferrer`），否則維持純文字；TodayLog 與 MemberPanel 共用
+- [x] 公會大廳（HallTab）自己讀 `/api/config` 取得網址；讀取失敗只是沒有連結，不跳錯誤橫幅
+
+驗證（2026-11-19）：
+- 測試：後端 127、前端 319，全數通過；`npm run build` 成功。
+- 瀏覽器開啟公司 OpenProject 的 `/work_packages/202/activity`，會自動轉到 `/projects/software-operations/work_packages/202/activity`，並直接打開 ACTIVITY 分頁。
