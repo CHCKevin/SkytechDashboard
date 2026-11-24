@@ -79,18 +79,21 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .note-add::before { display: none; }
 
 /* 待辦委託：只存本機的 TODO 便條，放在任務欄最上方 */
-.todo-board .notes { margin-bottom: 14px; }
+/* 有期限的便條下緣會凸出標籤，列距加大避免碰到下一列的圖釘 */
+.todo-board .notes { margin-bottom: 18px; row-gap: 24px; }
 .todo-empty { color: var(--parchment); text-shadow: 2px 2px 0 var(--ink); }
 .todo-card .note-main { padding-right: 44px; }
+.todo-card.has-due .note-main { padding-bottom: 16px; }
 .todo-name { overflow-wrap: anywhere; }
 .todo-text { font-size: var(--fs-1); opacity: 0.8; white-space: pre-line; overflow-wrap: anywhere; }
 .todo-close { position: absolute; top: 2px; right: 22px; background: none; border: none; cursor: pointer; opacity: 0.5; font-size: var(--fs-1); }
 .todo-close:hover { opacity: 1; color: var(--leaf); }
 /* 期限提醒：剩不到 1 天紅色、5 天內黃色 */
+.todo-due { position: absolute; left: 50%; bottom: 0; transform: translate(-50%, 50%); white-space: nowrap; background: var(--paper); border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); padding: 0 6px; font-size: var(--fs-1); pointer-events: none; }
 .todo-card.urgent { border-color: var(--seal); background: var(--due-urgent); }
-.todo-card.urgent .note-meta { color: var(--seal); opacity: 1; }
+.todo-card.urgent .todo-due { background: var(--seal); color: var(--parchment); }
 .todo-card.soon { border-color: var(--due-soon-ink); background: var(--due-soon); }
-.todo-card.soon .note-meta { color: var(--due-soon-ink); opacity: 1; }
+.todo-card.soon .todo-due { background: var(--due-soon-ink); color: var(--paper); }
 .todo-history summary { cursor: pointer; }
 .todo-history[open] summary { margin-bottom: 8px; }
 

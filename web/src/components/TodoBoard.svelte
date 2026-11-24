@@ -61,12 +61,13 @@
     {#each groups.open as todo (todo.id)}
       {@const overdue = isOverdue(todo, today)}
       {@const level = dueLevel(todo, today)}
-      <article class="note todo-card" class:urgent={level === 'urgent'} class:soon={level === 'soon'}>
+      <article class="note todo-card" class:has-due={todo.dueDate} class:urgent={level === 'urgent'} class:soon={level === 'soon'}>
         <button class="note-main" aria-label={`改 ${todo.title}`} onclick={() => (dialog = { mode: 'edit', todo })}>
           <span class="todo-name">{todo.title}</span>
           {#if todo.note.trim()}<span class="todo-text">{todo.note.trim()}</span>{/if}
-          {#if todo.dueDate}<span class="note-meta">{overdue ? '⚠ 逾期：' : '期限：'}{todo.dueDate}</span>{/if}
         </button>
+        <!-- 期限是疊在便條下緣的小標籤，不佔內文空間、不換行 -->
+        {#if todo.dueDate}<span class="todo-due">{overdue ? '⚠ 逾期' : '期限'} {todo.dueDate}</span>{/if}
         <button class="todo-close" aria-label={`結案 ${todo.title}`} title="結案" disabled={busy} onclick={() => setClosed(todo, true)}>✓</button>
         <button class="note-x" aria-label={`刪除 ${todo.title}`} title="刪除" disabled={busy} onclick={() => remove(todo)}>✕</button>
       </article>
