@@ -28,6 +28,10 @@ test('shows open todos sorted by due date, marks overdue ones, and keeps closed 
   expect(labels(/^改 /)).toEqual(['改 委託3', '改 委託2', '改 委託1']);
   expect(screen.getByText('⚠ 逾期：2026-11-20')).toBeTruthy();
   expect(screen.getByText('期限：2026-11-30')).toBeTruthy();
+  const card = name => screen.getByRole('button', { name: `改 ${name}` }).closest('article');
+  expect(card('委託3').classList.contains('urgent')).toBe(true);
+  expect(card('委託2').className).not.toMatch(/urgent|soon/);
+  expect(card('委託1').className).not.toMatch(/urgent|soon/);
   expect(screen.getByText(/第一行\s*第二行/)).toBeTruthy();
   expect(screen.getByText('📦 歷史任務（2）')).toBeTruthy();
   expect(labels(/^重開 /)).toEqual(['重開 委託5', '重開 委託4']);

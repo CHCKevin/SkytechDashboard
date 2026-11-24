@@ -21,6 +21,21 @@ export function isOverdue(todo, today) {
   return todo.closedAt === null && todo.dueDate !== null && todo.dueDate < today;
 }
 
+const DAY = 24 * 60 * 60 * 1000;
+const utcDay = day => {
+  const [year, month, date] = day.split('-').map(Number);
+  return Date.UTC(year, month - 1, date);
+};
+
+// 期限的提醒等級：剩不到 1 天（今天到期或已逾期）為 urgent（紅），1～5 天為 soon（黃），其餘或沒有期限為 null。
+export function dueLevel(todo, today) {
+  if (todo.closedAt !== null || todo.dueDate === null) return null;
+  const days = Math.round((utcDay(todo.dueDate) - utcDay(today)) / DAY);
+  if (days < 1) return 'urgent';
+  if (days <= 5) return 'soon';
+  return null;
+}
+
 const pad = value => String(value).padStart(2, '0');
 
 // 結案時間存成 ISO（UTC），顯示時換成本地的「YYYY-MM-DD HH:mm」。

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { formatClosedAt, isOverdue, splitTodos } from './todos.js';
+import { dueLevel, formatClosedAt, isOverdue, splitTodos } from './todos.js';
 
 const todo = (id, extra = {}) => ({ id, title: `T${id}`, note: '', dueDate: null, createdAt: '2026-11-01T00:00:00.000Z', closedAt: null, ...extra });
 
@@ -31,6 +31,19 @@ test('only open todos with a past due date are overdue', () => {
   expect(isOverdue(todo(1, { dueDate: '2026-11-24' }), '2026-11-24')).toBe(false);
   expect(isOverdue(todo(1), '2026-11-24')).toBe(false);
   expect(isOverdue(todo(1, { dueDate: '2026-11-01', closedAt: '2026-11-02T00:00:00.000Z' }), '2026-11-24')).toBe(false);
+});
+
+test('dueLevel: under 1 day is urgent, up to 5 days is soon, otherwise none', () => {
+  const level = dueDate => dueLevel(todo(1, { dueDate }), '2026-11-24');
+  expect(level('2026-11-20')).toBe('urgent');
+  expect(level('2026-11-24')).toBe('urgent');
+  expect(level('2026-11-25')).toBe('soon');
+  expect(level('2026-11-29')).toBe('soon');
+  expect(level('2026-11-30')).toBe(null);
+  expect(level(null)).toBe(null);
+  // 跨月也以日曆天計算。
+  expect(dueLevel(todo(1, { dueDate: '2026-12-03' }), '2026-11-28')).toBe('soon');
+  expect(dueLevel(todo(1, { dueDate: '2026-11-20', closedAt: '2026-11-21T00:00:00.000Z' }), '2026-11-24')).toBe(null);
 });
 
 test('formatClosedAt shows local date and time', () => {

@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import * as api from '../lib/api.js';
   import { todayLocal } from '../lib/dates.js';
-  import { formatClosedAt, isOverdue, splitTodos } from '../lib/todos.js';
+  import { dueLevel, formatClosedAt, isOverdue, splitTodos } from '../lib/todos.js';
   import TodoDialog from './TodoDialog.svelte';
 
   // 待辦委託：只存本機，不隨頂端日期改變、不連動 OpenProject。
@@ -60,7 +60,8 @@
   <div class="notes">
     {#each groups.open as todo (todo.id)}
       {@const overdue = isOverdue(todo, today)}
-      <article class="note todo-card" class:overdue>
+      {@const level = dueLevel(todo, today)}
+      <article class="note todo-card" class:urgent={level === 'urgent'} class:soon={level === 'soon'}>
         <button class="note-main" aria-label={`改 ${todo.title}`} onclick={() => (dialog = { mode: 'edit', todo })}>
           <span class="todo-name">{todo.title}</span>
           {#if todo.note.trim()}<span class="todo-text">{todo.note.trim()}</span>{/if}

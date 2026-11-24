@@ -17,6 +17,9 @@
   --brass: #c9a25a;
   --seal: #c0392b;
   --leaf: #4a8a3a;
+  --due-urgent: #f4c9b8;
+  --due-soon: #f7e27a;
+  --due-soon-ink: #8a6200;
   --font: 'Cubic11', 'Microsoft JhengHei', monospace;
   /* 點陣字只有在設計格線的整數倍才銳利；--fs-1 依 Step 1 讀到的建議字級設定，其他字級只能是它的整數倍。 */
   --fs-1: 12px;
@@ -82,8 +85,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .todo-text { font-size: var(--fs-1); opacity: 0.8; white-space: pre-line; overflow-wrap: anywhere; }
 .todo-close { position: absolute; top: 2px; right: 22px; background: none; border: none; cursor: pointer; opacity: 0.5; font-size: var(--fs-1); }
 .todo-close:hover { opacity: 1; color: var(--leaf); }
-.todo-card.overdue { border-color: var(--seal); }
-.todo-card.overdue .note-meta { color: var(--seal); opacity: 1; }
+/* 期限提醒：剩不到 1 天紅色、5 天內黃色 */
+.todo-card.urgent { border-color: var(--seal); background: var(--due-urgent); }
+.todo-card.urgent .note-meta { color: var(--seal); opacity: 1; }
+.todo-card.soon { border-color: var(--due-soon-ink); background: var(--due-soon); }
+.todo-card.soon .note-meta { color: var(--due-soon-ink); opacity: 1; }
 .todo-history summary { cursor: pointer; }
 .todo-history[open] summary { margin-bottom: 8px; }
 
