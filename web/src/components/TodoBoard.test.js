@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import TodoBoard from './TodoBoard.svelte';
 
-vi.mock('../lib/api.js', () => ({ listTodos: vi.fn(), createTodo: vi.fn(), updateTodo: vi.fn(), deleteTodo: vi.fn() }));
+vi.mock('../lib/api.js', () => ({ listTodos: vi.fn(), createTodo: vi.fn(), updateTodo: vi.fn(), deleteTodo: vi.fn(), searchWorkPackages: vi.fn() }));
 vi.mock('../lib/dates.js', async () => ({ ...(await vi.importActual('../lib/dates.js')), todayLocal: () => '2026-11-24' }));
 import * as api from '../lib/api.js';
 
