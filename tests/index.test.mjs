@@ -97,6 +97,14 @@ test('demo mode serves the page, API, and stores quests in dataDir', async () =>
     await pinned.text();
     const saved = JSON.parse(await readFile(join(dir, 'data', 'demo-quests.json'), 'utf8'));
     assert.equal(saved[0].workPackageId, 1234);
+    const todo = await fetch(`${base}/api/todos`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Quest-Board': '1', Origin: base },
+      body: JSON.stringify({ title: '寫週報' }),
+    });
+    assert.equal(todo.status, 201);
+    await todo.text();
+    const todos = JSON.parse(await readFile(join(dir, 'data', 'demo-todos.json'), 'utf8'));
+    assert.equal(todos[0].title, '寫週報');
   });
 });
 test('demo mode starts with default hall members and stores changes in dataDir', async () => {

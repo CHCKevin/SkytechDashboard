@@ -316,3 +316,77 @@
 驗證（2026-11-19）：
 - 測試：後端 127、前端 319，全數通過；`npm run build` 成功。
 - 瀏覽器開啟公司 OpenProject 的 `/work_packages/202/activity`，會自動轉到 `/projects/software-operations/work_packages/202/activity`，並直接打開 ACTIVITY 分頁。
+
+# 任務欄 — 待辦委託（TODO 便條）
+
+分支：`feature/todo-board`（從 `develop` 開出）
+
+## 需求（2026-11-24 與使用者確認）
+
+- 任務欄頁籤最上方（橫跨兩欄）新增「📋 待辦委託」區塊；既有的「🗡 特別任務」搜尋區塊不變。
+- 不隨頂端日期改變、不連動 OpenProject、沒有工時，單純是 TODO。
+- 新增方式比照常駐任務：「＋ 釘上委託」開視窗填寫，釘成便條卡片。
+- 欄位：標題（必填，最多 100 字）、備註（選填，多行，最多 1000 字，保留換行）、期限（選填，YYYY-MM-DD）。
+- 便條操作：點卡片 → 修改；✓ 結案；✕ 刪除（先確認）。
+- 進行中排序：有期限的依期限由近到遠，沒期限的排後面，同條件依建立順序；期限早於今天的卡片標示「逾期」。
+- 歷史任務：放在區塊內，預設收合「📦 歷史任務（N）」，依結案時間新到舊排列；可「重開」或「刪除」。
+
+## 設計
+
+- 後端
+  - `server/todos.mjs`：`createTodoStore(path)`，沿用 `json-store.mjs`；資料 `{ id, title, note, dueDate, createdAt, closedAt }`，`id` 為遞增正整數；檔案損毀丟 `TodoStoreError`（`todos_corrupt`）。
+  - `server/validate.mjs`：`parseTodoInput(body, { partial })`，欄位 `title`、`note`、`dueDate`（可為 null）、`closed`（只限 partial）。
+  - `server/http.mjs` 路由：`GET /api/todos`、`POST /api/todos`（201）、`PATCH /api/todos/:id`（`closed: true/false` 設定或清除 `closedAt`）、`DELETE /api/todos/:id`；皆回傳完整清單；找不到編號回 404。
+  - `server/index.mjs`：即時模式 `todos.json`、示例模式 `demo-todos.json`。
+- 前端
+  - `web/src/lib/api.js`：`listTodos`、`createTodo`、`updateTodo`、`deleteTodo`。
+  - `web/src/lib/todos.js`：`splitTodos(list)` → `{ open, closed }` 排序、`isOverdue(todo, today)`。
+  - `TodoBoard.svelte`（便條＋歷史區）、`TodoDialog.svelte`（新增／修改視窗）；`QuestTab.svelte` 在 `.layout` 上方放 `TodoBoard`。
+
+## 步驟
+
+- [x] 1 後端儲存 `todos.mjs` ＋ 測試
+- [x] 2 輸入驗證 `parseTodoInput` ＋ 測試
+- [x] 3 HTTP 路由與 index 組裝 ＋ 整合測試
+- [x] 4 前端 api 與 `lib/todos.js` ＋ 測試
+- [x] 5 `TodoDialog`、`TodoBoard` 元件 ＋ 測試，接到 `QuestTab`
+- [x] 6 `npm test`、`npm run build`、示例模式瀏覽器驗證（新增／修改／結案／重開／刪除、重新整理後保留、切換日期不影響、CSP 無違規）
+- [x] 7 更新 handoff.md、本節 Review
+
+## Review（待辦委託）
+
+- 測試：`npm test` 後端 137、前端 332 全數通過；`npm run build` 無警告。
+- 示例模式瀏覽器驗證（另開埠號 4199、資料目錄放暫存區，未動使用者的 4173 與 data/）：
+  - 新增「交週報給主管」（兩行備註、期限 11/20）→ 卡片顯示兩行備註與紅色「⚠ 逾期」；新增無期限的「整理桌面」。
+  - 年份輸入錯誤時伺服器回 400，訊息顯示在視窗內且輸入保留。
+  - 兩筆依序結案 → 歷史任務（2）展開後「整理桌面」（較晚結案）在上；重開「交週報給主管」回到便條；刪除「整理桌面」（以頁面腳本把 window.confirm 設為同意，避免瀏覽器對話框卡住工具）。
+  - 切換到前一天：待辦委託不變，本日已接任務正常換日。
+  - 重新整理後資料保留；`demo-todos.json` 內容正確（備註保留換行）。主控台無訊息、伺服器輸出只有啟動訊息。
+- 未驗證：即時模式（本功能不連動 OpenProject，只差在檔名 `todos.json`）；窄螢幕版面。
+
+### 追加：標題可用編號查詢帶入（2026-11-24）
+
+- 需求：委託標題可直接輸入，也可以像特別任務一樣用編號或名稱搜尋 work package 帶入。
+- 做法：`TodoDialog` 加入 `WorkPackageSearch`，選取後標題填入「#編號 主旨」（截到 100 字），之後仍可再修改；只帶入文字，資料仍只存本機。在搜尋框按 Enter 不會送出表單，搜尋結果按鈕仍可用 Enter 選取。
+- 測試：前端 336 全過（新增 `TodoDialog.test.js` 4 個；拿掉 Enter 防護時對應測試會失敗，已確認）；`npm run build` 無警告。
+- 示例模式瀏覽器驗證（埠號 4199）：搜尋 2051 時按 Enter 沒有送出 → 點選結果後標題變成「#2051 週會與進度回報」→ 釘上後便條與 `demo-todos.json` 皆正確。
+
+### 追加：便條依期限上色（2026-11-24）
+
+- 規則：剩餘天數 = 期限 − 今天（本地日曆天）。< 1 天（今天到期或已逾期）紅色；1～5 天黃色；> 5 天或沒有期限維持原色。已逾期仍顯示「⚠ 逾期」。
+- 做法：`lib/todos.js` 新增 `dueLevel`（urgent／soon／null），`TodoBoard` 依等級加上 `.urgent`／`.soon`；顏色定義在 `pixel.css` 的 `--due-*` 變數。
+- 測試：前端 337 全過（含 0、1、5、6 天邊界與跨月）；`npm run build` 無警告。
+- 示例模式瀏覽器驗證：逾期、今天到期為紅；明天、剩 5 天為黃；剩 6 天、無期限為原色。
+- 注意：「今天」在頁面載入時決定，頁面跨夜不重新整理時顏色不會自動更新。
+
+### 追加：待辦委託與常駐任務同寬（2026-11-24）
+
+- 待辦委託移到左欄、常駐任務上方，兩者同寬；右欄「本日已接任務」從頁面頂端開始。窄螢幕（≤ 800px）依序為待辦委託、常駐任務、本日已接任務。
+- 做法：`QuestTab` 改回 `<main class="layout">`，左欄 `.quest-column` 包住 `TodoBoard` 與 `QuestBoard`。
+- 測試：後端 137、前端 337 全過；`npm run build` 無警告；示例模式瀏覽器截圖確認版面。
+
+### 追加：期限改為便條下緣的小標籤（2026-11-24）
+
+- 問題：期限放在便條內文最後一行，窄便條會把「期限：2026-11-25」折成兩行，擋到任務內容。
+- 做法：期限改成 `.todo-due` 小長方形，絕對定位在便條下緣中央、往下凸出一半，`white-space: nowrap` 不換行；有期限的便條內文底部留白，便條列距加大避免碰到下一列的圖釘。紅／黃便條的標籤分別用紅底、深黃底。
+- 測試：後端 137、前端 337 全過；`npm run build` 無警告；示例模式截圖確認（含多行備註的便條）標籤不換行、不擋內文。

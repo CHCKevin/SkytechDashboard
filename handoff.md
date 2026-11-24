@@ -1,11 +1,12 @@
 # 任務布告欄 工作交接
 
-最後更新：2026-11-19（Asia/Taipei）
+最後更新：2026-11-24（Asia/Taipei）
 目前階段：
 - 第一階段（My time tracking 任務布告欄）已完成實作與驗證，並已合併到 `develop`（PR #1，分支 `feature/quest-board` 已刪除）。
 - 第二階段（公會大廳）已完成實作與驗證，已合併到 `develop`（PR #2）。
 - 第三階段（像素畫面優化）：路線圖第 0–5 階段全部完成（研究、像素引擎、換上大廳、動畫與四個方向、裝飾），已合併到 `develop`（PR #3）。第 6 階段（AI 起稿）是選用，未做。
 - 任務欄「匯出工時表」連結（直接產生 OpenProject Timesheet PDF）：已完成實作與驗證，位於 `feature/timesheet-export`，已開 PR #4 到 `develop`。設計 `docs/superpowers/specs/2026-11-19-timesheet-export-design.md`，計畫 `docs/superpowers/plans/2026-11-19-timesheet-export.md`。
+- 任務欄「📋 待辦委託」（本機 TODO 便條，不連動 OpenProject）：已完成實作與驗證，位於 `feature/todo-board`，已開 PR #6 到 `develop`。需求與驗證紀錄見 `tasks/todo.md`。
 
 ## 專案方向
 
@@ -45,7 +46,7 @@
 | `port` | 預設 4173 |
 | `dailyTargetHours` | 每日目標時數，預設 8 |
 | `leaveWorkPackageId` | 請假的 work package 編號，預設 200；大廳用它判定成員是否休息 |
-| `dataDir` | 本機資料目錄，預設 `data`。常駐任務：即時模式 `quests.json`、示例模式 `demo-quests.json`；大廳成員：即時模式 `hall.json`、示例模式 `demo-hall.json` |
+| `dataDir` | 本機資料目錄，預設 `data`。常駐任務：即時模式 `quests.json`、示例模式 `demo-quests.json`；待辦委託：即時模式 `todos.json`、示例模式 `demo-todos.json`；大廳成員：即時模式 `hall.json`、示例模式 `demo-hall.json` |
 | `staticDir` | 前端產物目錄，預設 `web/dist` |
 
 禁止把 token 寫進文件、commit 或對話輸出。
@@ -62,6 +63,7 @@
   - 前端：`App.svelte` 只管頁籤、日期與橫幅；`QuestTab.svelte` 是第一階段的全部內容；`HallTab.svelte` 負責讀取、每 5 分鐘自動更新與選取。座位分配在 `web/src/lib/seats.js`，造型在 `web/src/lib/sprite.js`（由使用者編號固定算出）。
 - 像素引擎（`web/src/art/`，純 JavaScript，瀏覽器與 Node 共用）：`style.js` 調色盤與色階、`engine.js` 上色／木紋／外框／落影、`validate.js` 自動檢查、`assets/` 字元格樣板、`golden.json` 黃金指紋。開發工具在 `tools/art/`（索引色 PNG、目錄），輸出到被忽略的 `art-out/`。人物造型沿用 `lookFor` 的抽選，換畫法後每個人的造型類型不變（`looks-v1.json` 鎖住第二階段的結果）。
 - 大廳場景：原生 220×160，`--px` 決定倍率（桌面 3 倍、窄螢幕 2 倍可捲動）。`lib/hall-art.js` 組出背景與各排前方的桌子；`HallScene.svelte` 依排輸出「角色按鈕 → 桌子」。座位 32 個（吧檯 6、工作桌 20、沙發 6），成員上限仍是 16。人物有正面、背面、左右側面：吧檯的人面向吧檯（背面），工作桌分桌後（正面）、桌頭（側面）、桌前（背面），沙發是正面，上方 L 型沙發的側座面向左。工作中與發呆各有兩幀動畫（CSS 切換，減少動態效果時停止）。桌面 3 倍、視窗 1179px 以下 2 倍。
+- 待辦委託：`server/todos.mjs` 存本機 JSON（`{ id, title, note, dueDate, createdAt, closedAt }`，`closedAt` 為 null 代表進行中），路由 `GET/POST /api/todos`、`PATCH/DELETE /api/todos/:id`（`closed: true/false` 結案／重開），都回傳完整清單。前端 `TodoBoard.svelte` 在任務欄左欄最上方（常駐任務上方），自行讀取，不受頂端日期影響；期限剩不到 1 天紅色、5 天內黃色；排序在 `web/src/lib/todos.js`（進行中依期限、無期限排後；歷史依結案時間新到舊）。
 - 匯出工時表：OpenProject 的 Timesheet PDF 匯出屬於網頁路由，只認瀏覽器登入（API token 打 `/cost_reports` 會被轉到 `/login`），所以本工具只產生連結，由使用者的瀏覽器開啟。`/api/config` 回傳 `openProjectUrl`（即時模式為 origin，示例模式為 null）；`web/src/lib/timesheet.js` 依頂端所選日期算出週一到週日，組出 `/cost_reports.pdf` 加上舊版篩選參數（使用者 = me、`spent_on <>d`、`unit=-1`）。點擊後在新分頁由 OpenProject 排入匯出工作、跳到 job 狀態頁並自動下載 PDF；網址上的篩選會在同一個請求套用，不會沿用 session（已實測）。公司 OpenProject 若升級並改用新路由，舊網址應該會被轉址，但要重新驗證。
 - `web/`：Svelte 5 + Vite。`web/src/lib/api.js` 是唯一呼叫 `/api` 的模組。元件不得使用 inline style、`style:` 或 `transition:`（會違反 CSP）。
 - 字型：俐方體11號 Cubic 11（SIL OFL 1.1），設計格線 12px，字級只用 12px／24px。

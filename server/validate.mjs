@@ -107,3 +107,41 @@ export function parseSearchTerm(value) {
   if (term.length > 100) throw new InputError('q', '搜尋文字最多 100 字');
   return term;
 }
+
+const TODO_KEYS = ['title', 'note', 'dueDate'];
+
+const todoParsers = {
+  // 標題去除前後空白後不能是空的；備註保留原樣（含換行）。
+  title: value => {
+    const title = typeof value === 'string' ? value.trim() : '';
+    if (!title) throw new InputError('title', '標題不能是空的');
+    if (title.length > 100) throw new InputError('title', '標題最多 100 字');
+    return title;
+  },
+  note: value => {
+    if (typeof value !== 'string') throw new InputError('note', '備註必須是文字');
+    if (value.length > 1000) throw new InputError('note', '備註最多 1000 字');
+    return value;
+  },
+  dueDate: value => (value === null ? null : parseDate(value, 'dueDate')),
+  closed: value => {
+    if (typeof value !== 'boolean') throw new InputError('closed', '結案狀態必須是 true 或 false');
+    return value;
+  },
+};
+
+// 新增：標題必填，備註與期限可省略；修改（partial）：只帶有變動的欄位，另可帶 closed 切換結案。
+export function parseTodoInput(body, { partial = false } = {}) {
+  const keys = partial ? [...TODO_KEYS, 'closed'] : TODO_KEYS;
+  assertObject(body, keys);
+  if (partial) {
+    const present = keys.filter(key => body[key] !== undefined);
+    if (!present.length) throw new InputError('body', '至少要修改一個欄位');
+    return Object.fromEntries(present.map(key => [key, todoParsers[key](body[key])]));
+  }
+  return {
+    title: todoParsers.title(body.title),
+    note: body.note === undefined ? '' : todoParsers.note(body.note),
+    dueDate: body.dueDate === undefined ? null : todoParsers.dueDate(body.dueDate),
+  };
+}

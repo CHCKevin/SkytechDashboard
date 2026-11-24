@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { InputError, parseDate, parsePathId, parseEntryInput, parseQuestInput, parseSearchTerm, parseHallMemberInput } from '../server/validate.mjs';
+import { InputError, parseDate, parsePathId, parseEntryInput, parseQuestInput, parseSearchTerm, parseHallMemberInput, parseTodoInput } from '../server/validate.mjs';
 
 const fails = (fn, field) => assert.throws(fn, error => error instanceof InputError && error.field === field);
 
@@ -58,4 +58,25 @@ test('parseHallMemberInput requires a positive integer userId and nothing else',
   fails(() => parseHallMemberInput({ userId: 18, name: 'x' }), 'name');
   fails(() => parseHallMemberInput([]), 'body');
   fails(() => parseHallMemberInput(null), 'body');
+});
+
+test('parseTodoInput requires a non-blank title and defaults note and dueDate', () => {
+  assert.deepEqual(parseTodoInput({ title: '  寫週報 ' }), { title: '寫週報', note: '', dueDate: null });
+  assert.deepEqual(parseTodoInput({ title: 'A', note: '一\n二', dueDate: '2026-11-30' }), { title: 'A', note: '一\n二', dueDate: '2026-11-30' });
+  assert.deepEqual(parseTodoInput({ title: 'A', dueDate: null }), { title: 'A', note: '', dueDate: null });
+  for (const bad of [undefined, '', '   ', 3, 'x'.repeat(101)]) fails(() => parseTodoInput({ title: bad }), 'title');
+  fails(() => parseTodoInput({ title: 'A', note: 3 }), 'note');
+  fails(() => parseTodoInput({ title: 'A', note: 'x'.repeat(1001) }), 'note');
+  fails(() => parseTodoInput({ title: 'A', dueDate: '2026-02-30' }), 'dueDate');
+  // 新增時不能直接結案。
+  fails(() => parseTodoInput({ title: 'A', closed: true }), 'closed');
+  fails(() => parseTodoInput(null), 'body');
+});
+test('partial todo input keeps only provided fields and accepts closed', () => {
+  assert.deepEqual(parseTodoInput({ closed: true }, { partial: true }), { closed: true });
+  assert.deepEqual(parseTodoInput({ note: '', dueDate: null }, { partial: true }), { note: '', dueDate: null });
+  fails(() => parseTodoInput({}, { partial: true }), 'body');
+  fails(() => parseTodoInput({ closed: 'yes' }, { partial: true }), 'closed');
+  fails(() => parseTodoInput({ title: ' ' }, { partial: true }), 'title');
+  fails(() => parseTodoInput({ id: 3 }, { partial: true }), 'id');
 });

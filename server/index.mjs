@@ -9,6 +9,7 @@ import { createClient } from './openproject/client.mjs';
 import { createQuestStore } from './quests.mjs';
 import { scanStaticFiles } from './static-files.mjs';
 import { createTimeTrackingSource } from './time-tracking.mjs';
+import { createTodoStore } from './todos.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 
@@ -27,8 +28,9 @@ async function main() {
     resolve(root, config.dataDir, config.mode === 'demo' ? 'demo-hall.json' : 'hall.json'),
     { initial: config.mode === 'demo' ? DEMO_HALL_MEMBERS : [] },
   );
+  const todos = createTodoStore(resolve(root, config.dataDir, config.mode === 'demo' ? 'demo-todos.json' : 'todos.json'));
   const handler = createHandler({
-    source, quests, hall, mode: config.mode, dailyTargetHours: config.dailyTargetHours,
+    source, quests, hall, todos, mode: config.mode, dailyTargetHours: config.dailyTargetHours,
     leaveWorkPackageId: config.leaveWorkPackageId, staticFiles,
     // loadConfig 已正規化為 origin；示例模式為 null。
     openProjectUrl: config.baseUrl,
