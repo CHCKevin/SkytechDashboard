@@ -9,6 +9,7 @@ import { createHandler, listen } from '../server/http.mjs';
 import { createDemoSource } from '../server/demo.mjs';
 import { createQuestStore } from '../server/quests.mjs';
 import { createHallStore, HallStoreError } from '../server/hall.mjs';
+import { createTodoStore, TodoStoreError } from '../server/todos.mjs';
 import { SourceError } from '../server/openproject/errors.mjs';
 
 const CSP = "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
@@ -18,7 +19,7 @@ async function withServer(overrides, run) {
   await writeFile(join(dir, 'index.html'), '<!doctype html><title>t</title>');
   const options = {
     source: createDemoSource({ today: '2026-11-16' }), quests: createQuestStore(join(dir, 'quests.json')),
-    hall: createHallStore(join(dir, 'hall.json')), leaveWorkPackageId: 200,
+    hall: createHallStore(join(dir, 'hall.json')), todos: createTodoStore(join(dir, 'todos.json')), leaveWorkPackageId: 200,
     mode: 'demo', dailyTargetHours: 8,
     staticFiles: { '/': { path: join(dir, 'index.html'), type: 'text/html; charset=utf-8' } },
     ...overrides,
@@ -146,6 +147,47 @@ test('quests: pin with subject and activity name, re-pin updates, unpin', async 
     assert.equal((await write(port, '/api/quests', 'POST', { workPackageId: 999 })).status, 404);
     assert.deepEqual((await write(port, '/api/quests/1234', 'DELETE')).json, []);
   });
+});
+test('todos: create, edit, close, reopen and delete without touching OpenProject', async () => {
+  await withServer({}, async port => {
+    assert.deepEqual((await send(port, '/api/todos')).json, []);
+    const created = await write(port, '/api/todos', 'POST', { title: ' 寫週報 ', note: '一\n二', dueDate: '2026-11-30' });
+    assert.equal(created.status, 201);
+    assert.equal(created.json.length, 1);
+    const [todo] = created.json;
+    assert.deepEqual({ ...todo, createdAt: undefined }, { id: 1, title: '寫週報', note: '一\n二', dueDate: '2026-11-30', createdAt: undefined, closedAt: null });
+    assert.ok(!Number.isNaN(Date.parse(todo.createdAt)));
+    assert.equal((await write(port, '/api/todos', 'POST', { title: '' })).status, 400);
+    const edited = await write(port, '/api/todos/1', 'PATCH', { title: '寫月報', dueDate: null });
+    assert.equal(edited.json[0].title, '寫月報');
+    assert.equal(edited.json[0].dueDate, null);
+    const closed = await write(port, '/api/todos/1', 'PATCH', { closed: true });
+    assert.ok(!Number.isNaN(Date.parse(closed.json[0].closedAt)));
+    assert.equal((await write(port, '/api/todos/1', 'PATCH', { closed: false })).json[0].closedAt, null);
+    const missing = await write(port, '/api/todos/9', 'PATCH', { closed: true });
+    assert.equal(missing.status, 404);
+    assert.equal(missing.json.error.code, 'not_found');
+    assert.equal((await write(port, '/api/todos/abc', 'PATCH', { closed: true })).status, 400);
+    assert.deepEqual((await write(port, '/api/todos/1', 'DELETE')).json, []);
+    // 寫入仍受 CSRF 防護。
+    assert.equal((await send(port, '/api/todos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"title":"x"}' })).status, 403);
+  });
+});
+test('todo store errors are a 500 logged by code only', async () => {
+  const todos = { list: async () => { throw new TodoStoreError(); } };
+  const logged = [];
+  const original = console.error;
+  console.error = (...args) => logged.push(args);
+  try {
+    await withServer({ todos }, async port => {
+      const res = await send(port, '/api/todos');
+      assert.equal(res.status, 500);
+      assert.equal(res.json.error.code, 'todos_corrupt');
+    });
+  } finally {
+    console.error = original;
+  }
+  assert.deepEqual(logged, [['Todo store error:', 'todos_corrupt']]);
 });
 test('corrupt quest file is a 500 with a clear code', async () => {
   const quests = { list: async () => { const { QuestStoreError } = await import('../server/quests.mjs'); throw new QuestStoreError(); } };

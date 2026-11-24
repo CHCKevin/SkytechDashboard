@@ -316,3 +316,50 @@
 驗證（2026-11-19）：
 - 測試：後端 127、前端 319，全數通過；`npm run build` 成功。
 - 瀏覽器開啟公司 OpenProject 的 `/work_packages/202/activity`，會自動轉到 `/projects/software-operations/work_packages/202/activity`，並直接打開 ACTIVITY 分頁。
+
+# 任務欄 — 待辦委託（TODO 便條）
+
+分支：`feature/todo-board`（從 `develop` 開出）
+
+## 需求（2026-11-24 與使用者確認）
+
+- 任務欄頁籤最上方（橫跨兩欄）新增「📋 待辦委託」區塊；既有的「🗡 特別任務」搜尋區塊不變。
+- 不隨頂端日期改變、不連動 OpenProject、沒有工時，單純是 TODO。
+- 新增方式比照常駐任務：「＋ 釘上委託」開視窗填寫，釘成便條卡片。
+- 欄位：標題（必填，最多 100 字）、備註（選填，多行，最多 1000 字，保留換行）、期限（選填，YYYY-MM-DD）。
+- 便條操作：點卡片 → 修改；✓ 結案；✕ 刪除（先確認）。
+- 進行中排序：有期限的依期限由近到遠，沒期限的排後面，同條件依建立順序；期限早於今天的卡片標示「逾期」。
+- 歷史任務：放在區塊內，預設收合「📦 歷史任務（N）」，依結案時間新到舊排列；可「重開」或「刪除」。
+
+## 設計
+
+- 後端
+  - `server/todos.mjs`：`createTodoStore(path)`，沿用 `json-store.mjs`；資料 `{ id, title, note, dueDate, createdAt, closedAt }`，`id` 為遞增正整數；檔案損毀丟 `TodoStoreError`（`todos_corrupt`）。
+  - `server/validate.mjs`：`parseTodoInput(body, { partial })`，欄位 `title`、`note`、`dueDate`（可為 null）、`closed`（只限 partial）。
+  - `server/http.mjs` 路由：`GET /api/todos`、`POST /api/todos`（201）、`PATCH /api/todos/:id`（`closed: true/false` 設定或清除 `closedAt`）、`DELETE /api/todos/:id`；皆回傳完整清單；找不到編號回 404。
+  - `server/index.mjs`：即時模式 `todos.json`、示例模式 `demo-todos.json`。
+- 前端
+  - `web/src/lib/api.js`：`listTodos`、`createTodo`、`updateTodo`、`deleteTodo`。
+  - `web/src/lib/todos.js`：`splitTodos(list)` → `{ open, closed }` 排序、`isOverdue(todo, today)`。
+  - `TodoBoard.svelte`（便條＋歷史區）、`TodoDialog.svelte`（新增／修改視窗）；`QuestTab.svelte` 在 `.layout` 上方放 `TodoBoard`。
+
+## 步驟
+
+- [x] 1 後端儲存 `todos.mjs` ＋ 測試
+- [x] 2 輸入驗證 `parseTodoInput` ＋ 測試
+- [x] 3 HTTP 路由與 index 組裝 ＋ 整合測試
+- [x] 4 前端 api 與 `lib/todos.js` ＋ 測試
+- [x] 5 `TodoDialog`、`TodoBoard` 元件 ＋ 測試，接到 `QuestTab`
+- [x] 6 `npm test`、`npm run build`、示例模式瀏覽器驗證（新增／修改／結案／重開／刪除、重新整理後保留、切換日期不影響、CSP 無違規）
+- [x] 7 更新 handoff.md、本節 Review
+
+## Review（待辦委託）
+
+- 測試：`npm test` 後端 137、前端 332 全數通過；`npm run build` 無警告。
+- 示例模式瀏覽器驗證（另開埠號 4199、資料目錄放暫存區，未動使用者的 4173 與 data/）：
+  - 新增「交週報給主管」（兩行備註、期限 11/20）→ 卡片顯示兩行備註與紅色「⚠ 逾期」；新增無期限的「整理桌面」。
+  - 年份輸入錯誤時伺服器回 400，訊息顯示在視窗內且輸入保留。
+  - 兩筆依序結案 → 歷史任務（2）展開後「整理桌面」（較晚結案）在上；重開「交週報給主管」回到便條；刪除「整理桌面」（以頁面腳本把 window.confirm 設為同意，避免瀏覽器對話框卡住工具）。
+  - 切換到前一天：待辦委託不變，本日已接任務正常換日。
+  - 重新整理後資料保留；`demo-todos.json` 內容正確（備註保留換行）。主控台無訊息、伺服器輸出只有啟動訊息。
+- 未驗證：即時模式（本功能不連動 OpenProject，只差在檔名 `todos.json`）；窄螢幕版面。

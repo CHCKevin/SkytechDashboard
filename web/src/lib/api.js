@@ -51,3 +51,7 @@ export const searchUsers = query => request(`/api/users/search?q=${encodeURIComp
 export const getHall = date => request(`/api/hall?date=${encodeURIComponent(date)}`);
 export const addHallMember = userId => request('/api/hall/members', { method: 'POST', body: { userId } });
 export const removeHallMember = userId => request(`/api/hall/members/${userId}`, { method: 'DELETE' });
+export const listTodos = () => request('/api/todos');
+export const createTodo = input => request('/api/todos', { method: 'POST', body: input });
+export const updateTodo = (id, patch) => request(`/api/todos/${id}`, { method: 'PATCH', body: patch });
+export const deleteTodo = id => request(`/api/todos/${id}`, { method: 'DELETE' });

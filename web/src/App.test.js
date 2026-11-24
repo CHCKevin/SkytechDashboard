@@ -11,6 +11,7 @@ vi.mock('./lib/api.js', async () => {
     updateEntry: vi.fn(), deleteEntry: vi.fn(), listActivities: vi.fn(), searchWorkPackages: vi.fn(),
     pinQuest: vi.fn(), unpinQuest: vi.fn(),
     getHall: vi.fn(), searchUsers: vi.fn(), addHallMember: vi.fn(), removeHallMember: vi.fn(),
+    listTodos: vi.fn(), createTodo: vi.fn(), updateTodo: vi.fn(), deleteTodo: vi.fn(),
   };
 });
 vi.mock('./lib/dates.js', async () => ({ ...(await vi.importActual('./lib/dates.js')), todayLocal: () => '2026-11-16' }));
@@ -27,6 +28,7 @@ beforeEach(() => {
   api.listEntries.mockResolvedValue([]);
   api.listActivities.mockResolvedValue([{ id: 3, name: 'Development', default: false }]);
   api.getHall.mockResolvedValue({ date: '2026-11-16', members: [] });
+  api.listTodos.mockResolvedValue([]);
 });
 
 test('loads user, quests and the day', async () => {

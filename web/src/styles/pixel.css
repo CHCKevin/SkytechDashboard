@@ -73,6 +73,20 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .note-add { background: transparent; border: 3px dashed var(--parchment); color: var(--parchment); box-shadow: none; cursor: pointer; text-shadow: 2px 2px 0 var(--ink); }
 .note-add::before { display: none; }
 
+/* 待辦委託：只存本機的 TODO 便條，放在任務欄最上方 */
+.todo-board { margin-bottom: 16px; }
+.todo-board .notes { margin-bottom: 14px; }
+.todo-empty { color: var(--parchment); text-shadow: 2px 2px 0 var(--ink); }
+.todo-card .note-main { padding-right: 44px; }
+.todo-name { overflow-wrap: anywhere; }
+.todo-text { font-size: var(--fs-1); opacity: 0.8; white-space: pre-line; overflow-wrap: anywhere; }
+.todo-close { position: absolute; top: 2px; right: 22px; background: none; border: none; cursor: pointer; opacity: 0.5; font-size: var(--fs-1); }
+.todo-close:hover { opacity: 1; color: var(--leaf); }
+.todo-card.overdue { border-color: var(--seal); }
+.todo-card.overdue .note-meta { color: var(--seal); opacity: 1; }
+.todo-history summary { cursor: pointer; }
+.todo-history[open] summary { margin-bottom: 8px; }
+
 /* 羊皮紙面板 */
 .parchment { background: var(--parchment); border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 12px; }
 .special { background: var(--parchment-dark); }

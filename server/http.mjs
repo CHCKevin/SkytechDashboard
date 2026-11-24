@@ -4,7 +4,8 @@ import { SourceError, errorInfo, statusFor } from './openproject/errors.mjs';
 import { HallFullError, HallStoreError } from './hall.mjs';
 import { buildHall } from './hall-status.mjs';
 import { QuestStoreError } from './quests.mjs';
-import { InputError, parseDate, parseEntryInput, parseHallMemberInput, parsePathId, parseQuestInput, parseSearchTerm } from './validate.mjs';
+import { TodoNotFoundError, TodoStoreError } from './todos.mjs';
+import { InputError, parseDate, parseEntryInput, parseHallMemberInput, parsePathId, parseQuestInput, parseSearchTerm, parseTodoInput } from './validate.mjs';
 
 // Vite 產物沒有 inline script 與 import map，因此用固定 CSP。
 export const CSP = "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
@@ -21,7 +22,7 @@ class HttpError extends Error {
 }
 
 // 路由表：[方法, 路徑樣式, 處理函式]；同一路徑有多個方法時，405 的 Allow 依此產生。
-function routes({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackageId, openProjectUrl }) {
+function routes({ source, quests, hall, todos, mode, dailyTargetHours, leaveWorkPackageId, openProjectUrl }) {
   return [
     ['GET', /^\/api\/health$/, () => ({ body: { status: 'ok', mode } })],
     ['GET', /^\/api\/me$/, async () => ({ body: await source.getMe() })],
@@ -52,6 +53,14 @@ function routes({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackage
       return { body: await quests.upsert({ workPackageId, subject: wp.subject, activityId, activityName }) };
     }],
     ['DELETE', /^\/api\/quests\/([^/]+)$/, async ({ match }) => ({ body: await quests.remove(parsePathId(match[1], 'workPackageId')) })],
+    // 待辦委託只存本機、不連動 OpenProject；每個操作都回傳完整清單。
+    ['GET', /^\/api\/todos$/, async () => ({ body: await todos.list() })],
+    ['POST', /^\/api\/todos$/, async ({ readBody }) => ({ status: 201, body: await todos.create(parseTodoInput(await readBody())) })],
+    ['PATCH', /^\/api\/todos\/([^/]+)$/, async ({ match, readBody }) => {
+      const id = parsePathId(match[1], 'id');
+      return { body: await todos.update(id, parseTodoInput(await readBody(), { partial: true })) };
+    }],
+    ['DELETE', /^\/api\/todos\/([^/]+)$/, async ({ match }) => ({ body: await todos.remove(parsePathId(match[1], 'id')) })],
     ['GET', /^\/api\/users\/search$/, async ({ url }) => ({ body: await source.searchUsers(parseSearchTerm(url.searchParams.get('q'))) })],
     // 大廳只讀取 OpenProject：成員名單存本機，當日工時一次查詢取回後在這裡判定狀態。
     ['GET', /^\/api\/hall$/, async ({ url }) => {
@@ -69,8 +78,8 @@ function routes({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackage
   ];
 }
 
-export function createHandler({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackageId, openProjectUrl = null, staticFiles = {} }) {
-  const table = routes({ source, quests, hall, mode, dailyTargetHours, leaveWorkPackageId, openProjectUrl });
+export function createHandler({ source, quests, hall, todos, mode, dailyTargetHours, leaveWorkPackageId, openProjectUrl = null, staticFiles = {} }) {
+  const table = routes({ source, quests, hall, todos, mode, dailyTargetHours, leaveWorkPackageId, openProjectUrl });
   return async (req, res) => {
     try {
       await route(req, res, table, staticFiles);
@@ -187,8 +196,10 @@ function handleError(req, res, error) {
   }
   if (error instanceof SourceError) return sendError(req, res, statusFor(error.code), errorInfo(error));
   if (error instanceof HallFullError) return sendError(req, res, 409, { code: error.code, message: error.message });
-  if (error instanceof QuestStoreError || error instanceof HallStoreError) {
-    console.error(error instanceof QuestStoreError ? 'Quest store error:' : 'Hall store error:', error.code);
+  if (error instanceof TodoNotFoundError) return sendError(req, res, 404, { code: error.code, message: error.message });
+  if (error instanceof QuestStoreError || error instanceof HallStoreError || error instanceof TodoStoreError) {
+    const label = error instanceof QuestStoreError ? 'Quest' : error instanceof HallStoreError ? 'Hall' : 'Todo';
+    console.error(`${label} store error:`, error.code);
     return sendError(req, res, 500, { code: error.code, message: error.message });
   }
   // 只記錄白名單欄位，不記錄訊息或堆疊：來源錯誤可能含 token 或來源回應。

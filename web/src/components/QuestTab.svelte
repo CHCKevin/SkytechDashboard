@@ -7,8 +7,9 @@
   import QuestBoard from './QuestBoard.svelte';
   import SpecialQuest from './SpecialQuest.svelte';
   import TodayLog from './TodayLog.svelte';
+  import TodoBoard from './TodoBoard.svelte';
 
-  // 任務欄頁籤：常駐任務、特別任務與本日已接任務。日期由 App 持有，兩個頁籤共用。
+  // 任務欄頁籤：待辦委託、常駐任務、特別任務與本日已接任務。日期由 App 持有，兩個頁籤共用。
   let { date, ondatechange, onbanner } = $props();
 
   // 這些錯誤代表請求可能已送達 OpenProject 但回應遺失或無法解讀，不能直接重送。
@@ -122,18 +123,21 @@
   }
 </script>
 
-<main class="layout">
-  <QuestBoard {quests}
-    onaccept={quest => openCreate({ id: quest.workPackageId, subject: quest.subject }, quest.activityId, quest.activityName)}
-    onunpin={unpin}
-    onpin={() => (pinning = true)}>
-    <SpecialQuest onselect={workPackage => openCreate(workPackage)} />
-  </QuestBoard>
-  <div class="log-column">
-    {#if timesheetHref}
-      <a class="btn timesheet-link" href={timesheetHref} target="_blank" rel="noopener noreferrer">匯出工時表（{formatWeekLabel(date)}）↗</a>
-    {/if}
-    <TodayLog {entries} {target} {openProjectUrl} {loading} {loadError} onedit={openEdit} ondelete={removeEntry} />
+<main>
+  <TodoBoard {onbanner} />
+  <div class="layout">
+    <QuestBoard {quests}
+      onaccept={quest => openCreate({ id: quest.workPackageId, subject: quest.subject }, quest.activityId, quest.activityName)}
+      onunpin={unpin}
+      onpin={() => (pinning = true)}>
+      <SpecialQuest onselect={workPackage => openCreate(workPackage)} />
+    </QuestBoard>
+    <div class="log-column">
+      {#if timesheetHref}
+        <a class="btn timesheet-link" href={timesheetHref} target="_blank" rel="noopener noreferrer">匯出工時表（{formatWeekLabel(date)}）↗</a>
+      {/if}
+      <TodayLog {entries} {target} {openProjectUrl} {loading} {loadError} onedit={openEdit} ondelete={removeEntry} />
+    </div>
   </div>
 </main>
 
