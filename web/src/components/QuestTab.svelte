@@ -123,21 +123,21 @@
   }
 </script>
 
-<main>
-  <TodoBoard {onbanner} />
-  <div class="layout">
+<main class="layout">
+  <div class="quest-column">
+    <TodoBoard {onbanner} />
     <QuestBoard {quests}
       onaccept={quest => openCreate({ id: quest.workPackageId, subject: quest.subject }, quest.activityId, quest.activityName)}
       onunpin={unpin}
       onpin={() => (pinning = true)}>
       <SpecialQuest onselect={workPackage => openCreate(workPackage)} />
     </QuestBoard>
-    <div class="log-column">
-      {#if timesheetHref}
-        <a class="btn timesheet-link" href={timesheetHref} target="_blank" rel="noopener noreferrer">匯出工時表（{formatWeekLabel(date)}）↗</a>
-      {/if}
-      <TodayLog {entries} {target} {openProjectUrl} {loading} {loadError} onedit={openEdit} ondelete={removeEntry} />
-    </div>
+  </div>
+  <div class="log-column">
+    {#if timesheetHref}
+      <a class="btn timesheet-link" href={timesheetHref} target="_blank" rel="noopener noreferrer">匯出工時表（{formatWeekLabel(date)}）↗</a>
+    {/if}
+    <TodayLog {entries} {target} {openProjectUrl} {loading} {loadError} onedit={openEdit} ondelete={removeEntry} />
   </div>
 </main>
 
